@@ -1,4 +1,5 @@
-import axios from "axios";
+import { apiLogin } from "../api/auth";
+import { Logger } from "../utils/logger";
 
 export interface LoginPayload {
   email: string;
@@ -9,6 +10,7 @@ export interface User {
   id: number;
   email: string;
   password: string;
+  name: string; 
 }
 
 export class AuthService {
@@ -17,27 +19,28 @@ export class AuthService {
       throw new Error("Email and password are required");
     }
 
-    const API_URL =
-      process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
-
     try {
-      const res = await axios.get<User[]>(`${API_URL}/users`);
-      const user = res.data.find(
+      // 🔎 Ambil list users dari fake API
+      const users = await apiLogin(data);
+
+      // ✅ Cari user sesuai email & password
+      const user = users.find(
         (u) => u.email === data.email && u.password === data.password
       );
 
       if (!user) {
-        // 🟢 Langsung throw invalid credentials
+        Logger.warn("Invalid login attempt", data.email);
         throw new Error("Invalid credentials");
       }
 
+      Logger.info("User logged in successfully", user);
       return user;
     } catch (err: any) {
-      // biarin error logic "Invalid credentials" tetap keluar
       if (err.message === "Invalid credentials") {
-        throw err;
+        throw err; // biarin tetap Invalid credentials
       }
-      // selain itu berarti error network/backend
+
+      Logger.error("Login failed due to network/backend error", err);
       throw new Error(err.response?.data?.detail || "Login failed");
     }
   }
