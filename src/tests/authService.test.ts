@@ -15,7 +15,7 @@ describe("AuthService", () => {
 
   it("returns user data when login success", async () => {
     const fakeUsers: User[] = [
-      { id: 1, email: "test@test.com", password: "123456" },
+      { id: 1, email: "test@test.com", password: "123456", name: "Test User" },
     ];
 
     mockedAxios.get.mockResolvedValueOnce({ data: fakeUsers } as any);
@@ -30,7 +30,7 @@ describe("AuthService", () => {
 
   it("throws error when credentials invalid", async () => {
     const fakeUsers: User[] = [
-      { id: 1, email: "test@test.com", password: "123456" },
+      { id: 1, email: "test@test.com", password: "123456", name: "Test User" },
     ];
 
     mockedAxios.get.mockResolvedValueOnce({ data: fakeUsers } as any);

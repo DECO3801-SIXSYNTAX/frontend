@@ -13,6 +13,7 @@ describe("AuthService Integration with json-server", () => {
       id: expect.any(Number),
       email: "test@test.com",
       password: "123456",
+      name: expect.any(String), // Add this line
     });
   });
 
