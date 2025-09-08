@@ -1,24 +1,23 @@
-// src/components/Input.tsx
 import React from "react";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+type Props = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   icon?: React.ReactNode;
-}
-
-const Input: React.FC<InputProps> = ({ label, icon, ...props }) => {
-  return (
-    <div className="flex flex-col mb-4">
-      <label className="text-sm font-medium mb-1">{label}</label>
-      <div className="flex items-center border rounded-lg px-3 py-2 bg-white">
-        {icon && <span className="mr-2 text-gray-400">{icon}</span>}
-        <input
-          {...props}
-          className="flex-1 outline-none text-sm text-gray-700"
-        />
-      </div>
-    </div>
-  );
 };
 
-export default Input;
+export default function Input({ label, icon, className, ...props }: Props) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block font-medium text-gray-700">{label}</span>
+      <div
+        className={`flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 ${className ?? ""}`}
+      >
+        <input
+          {...props}
+          className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
+        />
+        {icon && <div className="ml-2 text-gray-400">{icon}</div>}
+      </div>
+    </label>
+  );
+}
