@@ -26,9 +26,18 @@ export class AuthService {
         (u) => u.email === data.email && u.password === data.password
       );
 
-      if (!user) throw new Error("Invalid credentials");
+      if (!user) {
+        // 🟢 Langsung throw invalid credentials
+        throw new Error("Invalid credentials");
+      }
+
       return user;
     } catch (err: any) {
+      // biarin error logic "Invalid credentials" tetap keluar
+      if (err.message === "Invalid credentials") {
+        throw err;
+      }
+      // selain itu berarti error network/backend
       throw new Error(err.response?.data?.detail || "Login failed");
     }
   }
