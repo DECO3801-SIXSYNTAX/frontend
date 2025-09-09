@@ -1,22 +1,253 @@
 {
   "users": [
     {
-      "id": "1",
+      "id": "550e8400-e29b-41d4-a716-446655440001",
       "email": "test@test.com",
       "password": "123456",
-      "name": "Test User"
+      "name": "Test User",
+      "role": "planner",
+      "company": "Event Masters",
+      "phone": "+1234567890",
+      "experience": "5+ years",
+      "specialty": "Corporate Events"
     },
     {
-      "id": "2",
+      "id": "550e8400-e29b-41d4-a716-446655440002",
       "email": "dika@demo.com",
-      "password": "new123456",
-      "name": "Dika"
+      "password": "newpassword123",
+      "name": "Dika",
+      "role": "vendor"
     },
     {
-      "id": "99",
+      "id": "550e8400-e29b-41d4-a716-446655440003",
       "email": "googleuser@gmail.com",
       "password": "oauth-mock",
-      "name": "Google User"
+      "name": "Google User",
+      "role": "planner",
+      "company": "Google Events",
+      "phone": "+1987654321",
+      "experience": "3+ years",
+      "specialty": "Tech Conferences"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440004",
+      "name": "Andika Pramudya Wardana",
+      "email": "andikapramudya30@gmail.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "UQ",
+      "phone": "123456782345",
+      "experience": "5+ years",
+      "specialty": "Product Launches"
+    },
+    {
+      "id": "8d317fab-b3b7-4129-a8de-87af3d5ac749",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381155745@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "caeef746-9e0e-4ea3-a236-5cc050b6bc85",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381155805@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "caab3f4b-27a4-41da-88cd-531068e1cdc3",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381619269@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "e8be278d-9a19-4ef7-9df7-4936fcd9918c",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381619296@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "7cf758f6-dba2-45e0-a71b-01dcc2de48b1",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381760627@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "9550e02e-0e3a-444d-9cdb-bc7100036bf0",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381760666@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "9abb59fc-e4e4-4101-8056-22f03807ba71",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381893635@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "51f90b3c-78d7-4c5d-8c06-53e2ad044776",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381893661@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "3252114c-902d-454e-8770-56157b92cc2e",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757382351928@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "53b365e3-bd47-4198-bdaf-28732fc59681",
+      "name": "Integration Test Planner",
+      "email": "planner-1757382351953@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "9c3376d5-b44f-4536-bc8f-7117695f4867",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757382803597@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "76e93fc3-16cb-46da-9bf6-c31432be1b25",
+      "name": "Integration Test Planner",
+      "email": "planner-1757382803632@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "eee6a730-e48d-429c-a9ba-68f62c6d04d0",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757383507242@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "810b9e34-433b-45b5-a50a-2c14f71f7d2a",
+      "name": "Integration Test Planner",
+      "email": "planner-1757383507270@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "549a61d6-8f5a-4cde-8ef7-ea3045e3ecf6",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757383597973@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "ed1d1d49-b59e-40f5-a5be-5c3671cd412a",
+      "name": "Integration Test Planner",
+      "email": "planner-1757383598002@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "c3dca9ea-f025-414c-944a-4059fa05850c",
+      "name": "Andi",
+      "email": "a@gmail.com",
+      "password": "098765",
+      "role": "planner",
+      "company": "abc",
+      "phone": "123",
+      "experience": "10+ years",
+      "specialty": "Product Launches"
+    },
+    {
+      "id": "ed67e88a-c589-4bf3-b21e-dae99932573b",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757393606301@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "da100134-0e36-4eb1-bbb3-4cbd22fc5678",
+      "name": "Integration Test Planner",
+      "email": "planner-1757393606358@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "19eda059-343c-4813-b77e-627b3a5bbbdb",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757393947801@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "d436ba69-3ba1-4db2-8e3f-8150661acfe0",
+      "name": "Integration Test Planner",
+      "email": "planner-1757393947842@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "18f55650-7b30-4ef6-b128-beabc526a962",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757394285233@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "f9d00610-3a0b-495d-a5cb-1b92285bbe22",
+      "name": "Integration Test Planner",
+      "email": "planner-1757394285266@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
     }
   ]
 }
