@@ -3,7 +3,7 @@
     {
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "email": "test@test.com",
-      "password": "123456",
+      "password": "new123456",
       "name": "Test User",
       "role": "planner",
       "company": "Event Masters",
@@ -248,6 +248,17 @@
       "phone": "+1234567890",
       "experience": "3-5 years",
       "specialty": "Corporate Events"
+    },
+    {
+      "id": "647a6354-ee12-499c-a017-5bf79487d74d",
+      "name": "Allan",
+      "email": "allan@gmail.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "abc",
+      "phone": "123",
+      "experience": "1-2 years",
+      "specialty": "Conferences"
     }
   ]
 }
