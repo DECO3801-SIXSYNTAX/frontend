@@ -1,5 +1,26 @@
+import axios from "axios";
 import { apiLogin, apiUpdateUser, apiCreateUser, apiCheckEmailExists, apiGetUser } from "../api/auth";
 import { Logger } from "../utils/logger";
+
+const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
+// Django API response types
+interface DjangoLoginResponse {
+  user: User;
+  access: string;
+  refresh: string;
+}
+
+interface DjangoRegisterResponse {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
 
 export interface LoginPayload {
   email: string;
@@ -47,29 +68,29 @@ export class AuthService {
     }
 
     try {
-      // Get list of users from API
-      const users = await apiLogin(data);
+      // Use Django authentication endpoint
+      const response = await axios.post<DjangoLoginResponse>(`${API_URL}/api/auth/login/`, {
+        username: data.email, // Django expects username field
+        password: data.password
+      });
 
-      // Find user with matching email and password
-      const user = users.find(
-        (u) => u.email === data.email && u.password === data.password
-      );
+      const { user, access, refresh } = response.data;
 
-      if (!user) {
-        Logger.warn("Invalid login attempt", data.email);
-        throw new Error("Invalid credentials");
-      }
+      // Store JWT tokens for future API calls
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
 
-      Logger.info("User logged in successfully", { 
-        id: user.id, 
-        email: user.email, 
+      Logger.info("User logged in successfully", {
+        id: user.id,
+        email: user.email,
         name: user.name,
-        role: user.role 
+        role: user.role
       });
       return user;
     } catch (err: any) {
-      if (err.message === "Invalid credentials") {
-        throw err;
+      if (err.response?.status === 401) {
+        Logger.warn("Invalid login attempt", data.email);
+        throw new Error("Invalid credentials");
       }
 
       Logger.error("Login failed due to network/backend error", err);
@@ -108,26 +129,56 @@ export class AuthService {
     }
 
     try {
-      // Check if user with this email already exists
-      const emailExists = await apiCheckEmailExists(data.email);
-      if (emailExists) {
-        throw new Error("User with this email already exists");
-      }
-
-      // Create new user
-      const newUser = await apiCreateUser(data);
-      
-      Logger.info("User registered successfully", { 
-        id: newUser.id, 
-        email: newUser.email, 
-        name: newUser.name,
-        role: newUser.role 
+      // Use Django registration endpoint
+      const response = await axios.post<DjangoRegisterResponse>(`${API_URL}/api/auth/register/`, {
+        username: data.email, // Django expects username field
+        email: data.email,
+        password: data.password,
+        password2: data.password, // Django requires password confirmation
+        first_name: data.name,
+        role: data.role,
+        ...(data.role === "planner" && {
+          company: data.company,
+          phone: data.phone,
+          experience: data.experience,
+          specialty: data.specialty
+        })
       });
-      
-      return newUser;
+
+      const user: User = {
+        id: response.data.id,
+        email: response.data.email,
+        name: response.data.name,
+        role: response.data.role as "planner" | "vendor",
+        password: data.password, // Include password for User interface compatibility
+        company: response.data.company,
+        phone: response.data.phone,
+        experience: response.data.experience,
+        specialty: response.data.specialty
+      };
+
+      Logger.info("User registered successfully", {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      });
+
+      return user;
     } catch (err: any) {
-      if (err.message === "User with this email already exists") {
-        throw err;
+      if (err.response?.status === 400) {
+        const errorData = err.response.data;
+        if (errorData.username && errorData.username.includes("already exists")) {
+          throw new Error("User with this email already exists");
+        }
+        if (errorData.email && errorData.email.includes("already exists")) {
+          throw new Error("User with this email already exists");
+        }
+        // Handle other validation errors
+        const firstError = Object.values(errorData)[0];
+        if (Array.isArray(firstError) && firstError.length > 0) {
+          throw new Error(firstError[0]);
+        }
       }
 
       Logger.error("Registration failed", err);
@@ -135,9 +186,9 @@ export class AuthService {
     }
   }
 
-  async resetPassword(email: string, newPassword: string): Promise<void> {
-    if (!email || !newPassword) {
-      throw new Error("Email and new password are required");
+  async requestPasswordReset(email: string): Promise<void> {
+    if (!email) {
+      throw new Error("Email is required");
     }
 
     // Validate email format
@@ -146,32 +197,48 @@ export class AuthService {
       throw new Error("Please enter a valid email address");
     }
 
-    if (newPassword.length < 6) {
-      throw new Error("Password must be at least 6 characters long");
+    try {
+      // Use Django password reset endpoint (sends email with reset token)
+      await axios.post(`${API_URL}/api/auth/password-reset/`, {
+        email: email
+      });
+
+      Logger.info("Password reset email sent", email);
+    } catch (err: any) {
+      Logger.error("Password reset request failed", err);
+      // Always show the same message for security (don't reveal if email exists)
+      throw new Error("If this email is registered, you will receive a password reset link shortly.");
+    }
+  }
+
+  async resetPasswordWithToken(token: string, newPassword: string, confirmPassword: string): Promise<void> {
+    if (!token || !newPassword || !confirmPassword) {
+      throw new Error("Token, new password, and confirmation are required");
+    }
+
+    if (newPassword !== confirmPassword) {
+      throw new Error("Passwords do not match");
+    }
+
+    if (newPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters long");
     }
 
     try {
-      // Get all users to find the one with matching email
-      const users = await apiLogin({ email: "", password: "" });
-      const userToUpdate = users.find((user: User) => user.email === email);
-      
-      if (!userToUpdate) {
-        throw new Error("Email address not found");
-      }
-
-      // Update only the password field
-      await apiUpdateUser(userToUpdate.id, {
-        password: newPassword
+      // Use Django password reset confirm endpoint
+      await axios.post(`${API_URL}/api/auth/password-reset-confirm/`, {
+        token: token,
+        password: newPassword,
+        password2: confirmPassword
       });
 
-      Logger.info("Password reset successfully", email);
+      Logger.info("Password reset completed successfully");
     } catch (err: any) {
-      if (err.message === "Email address not found") {
-        throw err;
-      }
-
       Logger.error("Password reset failed", err);
-      throw new Error(err.response?.data?.detail || "Password reset failed");
+      if (err.response?.status === 400) {
+        throw new Error("Invalid or expired reset token. Please request a new password reset.");
+      }
+      throw new Error("Password reset failed. Please try again.");
     }
   }
 
@@ -182,14 +249,14 @@ export class AuthService {
 
     try {
       const user = await apiGetUser(userId);
-      
+
       Logger.info("User profile retrieved successfully", userId);
       return user;
     } catch (err: any) {
       if (err.response?.status === 404) {
         throw new Error("User not found");
       }
-      
+
       Logger.error("Failed to get user profile", err);
       throw new Error("Failed to get user profile");
     }
@@ -211,7 +278,7 @@ export class AuthService {
       const emailExists = await apiCheckEmailExists(updates.email);
       if (emailExists) {
         const users = await apiLogin({ email: "", password: "" });
-        const existingUser = users.find(u => u.email === updates.email);
+        const existingUser = users.find((u: User) => u.email === updates.email);
         if (existingUser && existingUser.id !== userId) {
           throw new Error("Email address is already in use");
         }
@@ -235,7 +302,7 @@ export class AuthService {
       if (err.response?.status === 404) {
         throw new Error("User not found");
       }
-      
+
       Logger.error("Profile update failed", err);
       throw new Error("Profile update failed");
     }
@@ -257,7 +324,7 @@ export class AuthService {
     try {
       // Get current user to verify current password
       const currentUser = await apiGetUser(userId);
-      
+
       if (currentUser.password !== currentPassword) {
         throw new Error("Current password is incorrect");
       }
@@ -265,7 +332,7 @@ export class AuthService {
       // Update password
       await apiUpdateUser(userId, {
         password: newPassword
-      });
+      } as any);
 
       Logger.info("Password changed successfully", userId);
     } catch (err: any) {
@@ -275,7 +342,7 @@ export class AuthService {
       if (err.response?.status === 404) {
         throw new Error("User not found");
       }
-      
+
       Logger.error("Password change failed", err);
       throw new Error("Password change failed");
     }
