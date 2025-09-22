@@ -108,22 +108,12 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
     try {
       const newUser = await authService.signUp(formData);
       showMessage(
-        `Welcome ${newUser.name}! Your account has been created successfully.`,
+        `Welcome ${newUser.name}! Your account has been created successfully. Redirecting to sign in...`,
         "success"
       );
 
       setTimeout(() => {
-        setFormData({
-          name: "",
-          email: "",
-          password: "",
-          role: "planner",
-          company: "",
-          phone: "",
-          experience: "",
-          specialty: "",
-        });
-        setConfirmPassword("");
+        onBackToSignIn();
       }, 2000);
     } catch (err: any) {
       let errorMessage = "Registration failed. Please try again.";

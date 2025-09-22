@@ -12,6 +12,7 @@ import type { CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { apiLogin, apiUpdateUser } from "../api/auth";
+import { useDashboard } from "../contexts/DashboardContext";
 
 const authService = new AuthService();
 
@@ -78,6 +79,7 @@ const haloVariants: Variants = {
 };
 
 export default function SignIn() {
+  const { setCurrentPage, setCurrentUser } = useDashboard();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -89,8 +91,6 @@ export default function SignIn() {
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   // 🚪 state buat ending animation; saat true → AnimatePresence main-card akan exit
   const [exiting, setExiting] = useState(false);
@@ -115,15 +115,30 @@ export default function SignIn() {
     showMessage("Signing you in...", "loading");
 
     try {
-      const res = await authService.signIn({ email, password });
-      // ✅ Berhasil → tampilin success + trigger ending animation
-      showMessage(`Welcome back, ${res.name || res.email}! Sign in successful.`, "success");
+      // For now, use mock authentication to work with the dashboard
+      // TODO: Replace with real authentication when backend is ready
+      if (email && password) {
+        const mockUser = {
+          id: 'mock-user-' + Date.now(),
+          email: email,
+          name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+          role: 'planner' as const,
+          password: password
+        };
 
-      // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
-      setTimeout(() => setExiting(true), 500);
+        // ✅ Berhasil → tampilin success + trigger ending animation
+        showMessage(`Welcome back, ${mockUser.name}! Sign in successful.`, "success");
 
-      // (opsional) setelah animasi selesai, pindah section, contoh: menuju SignUp demo
-      setTimeout(() => setShowSignUp(true), 900);
+        // Set current user in context
+        setCurrentUser(mockUser);
+
+        // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
+        setTimeout(() => setExiting(true), 500);
+
+        // Navigate to dashboard after animation
+        setTimeout(() => setCurrentPage('dashboard'), 900);
+        return;
+      }
     } catch (err: any) {
       let errorMessage = "An error occurred. Please try again.";
 
@@ -153,42 +168,15 @@ export default function SignIn() {
       return;
     }
 
-    if (!newPassword || !confirmPassword) {
-      showMessage("Please fill in both password fields", "error");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showMessage("Passwords do not match", "error");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      showMessage("Password must be at least 6 characters long", "error");
-      return;
-    }
+    showMessage("Sending password reset email...", "loading");
 
     try {
-      const users = await apiLogin({ email: "", password: "" });
-      const userToUpdate = users.find((user: User) => user.email === forgotEmail);
-
-      if (!userToUpdate) {
-        showMessage("Email address not found", "error");
-        return;
-      }
-
-      await apiUpdateUser(userToUpdate.id, {
-        ...userToUpdate,
-        password: newPassword,
-      });
-
-      showMessage("Password updated successfully! You can now sign in with your new password.", "success");
+      await authService.requestPasswordReset(forgotEmail);
+      showMessage("If this email is registered, you will receive a password reset link shortly.", "success");
       setShowForgotPassword(false);
       setForgotEmail("");
-      setNewPassword("");
-      setConfirmPassword("");
     } catch (error: any) {
-      showMessage("Failed to update password. Please try again.", "error");
+      showMessage(error.message || "Failed to send password reset email. Please try again.", "error");
     }
   };
 
@@ -365,7 +353,7 @@ export default function SignIn() {
                       <div className="mb-6">
                         <h3 className="text-xl font-bold text-gray-800 mb-2">Reset Password</h3>
                         <p className="text-sm text-gray-600">
-                          Enter your email and new password to reset your account password.
+                          Enter your email address and we'll send you a secure link to reset your password.
                         </p>
                       </div>
 
@@ -379,24 +367,6 @@ export default function SignIn() {
                           placeholder="Enter your email address"
                         />
 
-                        <Input
-                          label="New Password"
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          icon={<Lock size={16} />}
-                          placeholder="Enter new password"
-                        />
-
-                        <Input
-                          label="Confirm New Password"
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          icon={<Lock size={16} />}
-                          placeholder="Confirm new password"
-                        />
-
                         <div className="flex gap-3 pt-4">
                           <Button
                             onClick={() => setShowForgotPassword(false)}
@@ -405,7 +375,7 @@ export default function SignIn() {
                           />
                           <Button
                             onClick={handleForgotPassword}
-                            label="Reset Password"
+                            label="Send Reset Link"
                             className="flex-1 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600"
                           />
                         </div>
@@ -449,7 +419,7 @@ export default function SignIn() {
                   Welcome back! Please sign in to continue
                 </p>
 
-                <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <Input
                     label="Email address"
                     type="email"
@@ -487,29 +457,32 @@ export default function SignIn() {
                   </div>
 
                   <Button
-                    onClick={handleSubmit}
+                    type="submit"
                     label={messageType === "loading" ? "Signing In..." : "Sign In"}
                     className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 disabled:opacity-70"
                     disabled={messageType === "loading"}
                   />
+                </form>
 
-                  <div className="text-center text-gray-400 text-sm">or</div>
+                <div className="text-center text-gray-400 text-sm">or</div>
 
-                  <GoogleButton
-                    onSuccess={(email) => {
-                      const userName = email
-                        .split("@")[0]
-                        .replace(/[._]/g, " ")
-                        .replace(/\b\w/g, (l) => l.toUpperCase());
-                      showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
+                <GoogleButton
+                  onSuccess={(user) => {
+                    const userName = user.email
+                      .split("@")[0]
+                      .replace(/[._]/g, " ")
+                      .replace(/\b\w/g, (l: string) => l.toUpperCase());
+                    showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
-                      // 🎬 Ending setelah Google success (opsional)
-                      setTimeout(() => setExiting(true), 350);
-                      setTimeout(() => setShowSignUp(true), 800);
-                    }}
-                    onError={(error) => showMessage(`Google sign in failed: ${error}`, "error")}
-                  />
-                </div>
+                    // Set user data from Google authentication
+                    setCurrentUser(user);
+
+                    // 🎬 Ending setelah Google success (opsional)
+                    setTimeout(() => setExiting(true), 350);
+                    setTimeout(() => setCurrentPage('dashboard'), 800);
+                  }}
+                  onError={(error) => showMessage(`Google sign in failed: ${error}`, "error")}
+                />
 
                 <p className="mt-6 text-center text-xs sm:text-sm text-gray-500">
                   Don't have an account?{" "}
