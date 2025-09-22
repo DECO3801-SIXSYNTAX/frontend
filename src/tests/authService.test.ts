@@ -19,42 +19,50 @@ describe("AuthService", () => {
     });
 
     it("returns user data when login success", async () => {
-      const fakeUsers: User[] = [
-        { 
-          id: "550e8400-e29b-41d4-a716-446655440001", 
-          email: "test@test.com", 
-          password: "123456", 
-          name: "Test User",
-          role: "planner",
-          company: "Test Company",
-          phone: "+1234567890",
-          experience: "5+ years",
-          specialty: "Corporate Events"
-        },
-      ];
+      const mockUser: User = {
+        id: "550e8400-e29b-41d4-a716-446655440001",
+        email: "test@test.com",
+        password: "123456",
+        name: "Test User",
+        role: "planner",
+        company: "Test Company",
+        phone: "+1234567890",
+        experience: "5+ years",
+        specialty: "Corporate Events"
+      };
 
-      mockedAxios.get.mockResolvedValueOnce({ data: fakeUsers } as any);
+      const mockResponse = {
+        user: mockUser,
+        access: "mock-access-token",
+        refresh: "mock-refresh-token"
+      };
+
+      mockedAxios.post.mockResolvedValueOnce({ data: mockResponse } as any);
 
       const res = await service.signIn({
         email: "test@test.com",
         password: "123456",
       });
 
-      expect(res).toEqual(fakeUsers[0]);
+      expect(res).toEqual(mockUser);
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        "http://localhost:8000/api/auth/login/",
+        {
+          username: "test@test.com",
+          password: "123456"
+        }
+      );
     });
 
     it("throws error when credentials invalid", async () => {
-      const fakeUsers: User[] = [
-        { 
-          id: "550e8400-e29b-41d4-a716-446655440001", 
-          email: "test@test.com", 
-          password: "123456", 
-          name: "Test User",
-          role: "planner"
-        },
-      ];
+      const errorResponse = {
+        response: {
+          status: 401,
+          data: { detail: "Invalid credentials" }
+        }
+      };
 
-      mockedAxios.get.mockResolvedValueOnce({ data: fakeUsers } as any);
+      mockedAxios.post.mockRejectedValueOnce(errorResponse);
 
       await expect(
         service.signIn({ email: "wrong@test.com", password: "wrongpass" })
@@ -130,18 +138,36 @@ describe("AuthService", () => {
         role: "vendor"
       };
 
-      const expectedUser: User = {
+      const mockResponse = {
         id: "550e8400-e29b-41d4-a716-446655440001",
-        ...signUpData
+        email: "vendor@test.com",
+        name: "Test Vendor",
+        role: "vendor"
       };
 
-      // Mock email check (no existing users)
-      mockedAxios.get.mockResolvedValueOnce({ data: [] } as any);
-      // Mock user creation
-      mockedAxios.post.mockResolvedValueOnce({ data: expectedUser } as any);
+      const expectedUser: User = {
+        id: "550e8400-e29b-41d4-a716-446655440001",
+        email: "vendor@test.com",
+        name: "Test Vendor",
+        role: "vendor",
+        password: "123456"
+      };
+
+      mockedAxios.post.mockResolvedValueOnce({ data: mockResponse } as any);
 
       const result = await service.signUp(signUpData);
       expect(result).toEqual(expectedUser);
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        "http://localhost:8000/api/auth/register/",
+        {
+          username: "vendor@test.com",
+          email: "vendor@test.com",
+          password: "123456",
+          password2: "123456",
+          first_name: "Test Vendor",
+          role: "vendor"
+        }
+      );
     });
 
     it("creates planner successfully", async () => {
@@ -156,15 +182,30 @@ describe("AuthService", () => {
         specialty: "Corporate Events"
       };
 
-      const expectedUser: User = {
+      const mockResponse = {
         id: "550e8400-e29b-41d4-a716-446655440002",
-        ...signUpData
+        email: "planner@test.com",
+        name: "Test Planner",
+        role: "planner",
+        company: "Test Company",
+        phone: "+1234567890",
+        experience: "5+ years",
+        specialty: "Corporate Events"
       };
 
-      // Mock email check (no existing users)
-      mockedAxios.get.mockResolvedValueOnce({ data: [] } as any);
-      // Mock user creation
-      mockedAxios.post.mockResolvedValueOnce({ data: expectedUser } as any);
+      const expectedUser: User = {
+        id: "550e8400-e29b-41d4-a716-446655440002",
+        email: "planner@test.com",
+        name: "Test Planner",
+        role: "planner",
+        password: "123456",
+        company: "Test Company",
+        phone: "+1234567890",
+        experience: "5+ years",
+        specialty: "Corporate Events"
+      };
+
+      mockedAxios.post.mockResolvedValueOnce({ data: mockResponse } as any);
 
       const result = await service.signUp(signUpData);
       expect(result).toEqual(expectedUser);
@@ -178,154 +219,98 @@ describe("AuthService", () => {
         role: "vendor"
       };
 
-      const existingUsers: User[] = [
-        { 
-          id: "550e8400-e29b-41d4-a716-446655440001",
-          email: "existing@test.com",
-          password: "oldpass",
-          name: "Existing User",
-          role: "vendor"
+      const errorResponse = {
+        response: {
+          status: 400,
+          data: {
+            username: ["already exists"]
+          }
         }
-      ];
+      };
 
-      // Mock email check (user exists)
-      mockedAxios.get.mockResolvedValueOnce({ data: existingUsers } as any);
+      mockedAxios.post.mockRejectedValueOnce(errorResponse);
 
       await expect(service.signUp(signUpData))
         .rejects.toThrow("User with this email already exists");
     });
   });
 
-  describe("resetPassword", () => {
-    it("resets password successfully", async () => {
+  describe("requestPasswordReset", () => {
+    it("sends password reset email successfully", async () => {
       const email = "test@test.com";
-      const newPassword = "newpassword123";
-      
-      const existingUsers: User[] = [
-        { 
-          id: "550e8400-e29b-41d4-a716-446655440001",
-          email: email,
-          password: "oldpassword",
-          name: "Test User",
-          role: "vendor"
-        }
-      ];
 
-      const updatedUser: User = {
-        ...existingUsers[0],
-        password: newPassword
-      };
+      mockedAxios.post.mockResolvedValueOnce({ data: {} } as any);
 
-      // Mock getting users
-      mockedAxios.get.mockResolvedValueOnce({ data: existingUsers } as any);
-      // Mock password update
-      mockedAxios.patch.mockResolvedValueOnce({ data: updatedUser } as any);
+      await service.requestPasswordReset(email);
 
-      await service.resetPassword(email, newPassword);
-
-      expect(mockedAxios.patch).toHaveBeenCalledWith(
-        `http://localhost:8000/users/${existingUsers[0].id}`,
-        { password: newPassword }
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        "http://localhost:8000/api/auth/password-reset/",
+        { email: email }
       );
     });
 
-    it("throws error when email not found", async () => {
-      const email = "nonexistent@test.com";
+    it("throws error for invalid email", async () => {
+      await expect(
+        service.requestPasswordReset("invalid-email")
+      ).rejects.toThrow("Please enter a valid email address");
+    });
+  });
+
+  describe("resetPasswordWithToken", () => {
+    it("resets password with token successfully", async () => {
+      const token = "reset-token-123";
       const newPassword = "newpassword123";
+      const confirmPassword = "newpassword123";
 
-      // Mock getting users (empty array)
-      mockedAxios.get.mockResolvedValueOnce({ data: [] } as any);
+      mockedAxios.post.mockResolvedValueOnce({ data: {} } as any);
 
-      await expect(service.resetPassword(email, newPassword))
-        .rejects.toThrow("Email address not found");
+      await service.resetPasswordWithToken(token, newPassword, confirmPassword);
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        "http://localhost:8000/api/auth/password-reset-confirm/",
+        {
+          token: token,
+          password: newPassword,
+          password2: confirmPassword
+        }
+      );
+    });
+
+    it("throws error when passwords don't match", async () => {
+      await expect(
+        service.resetPasswordWithToken("token", "password1", "password2")
+      ).rejects.toThrow("Passwords do not match");
     });
   });
 
   describe("updateUserProfile", () => {
-    it("updates user profile successfully", async () => {
+    it("validates email format", async () => {
       const userId = "550e8400-e29b-41d4-a716-446655440001";
       const updates: UpdateUserPayload = {
-        name: "Updated Name",
-        company: "Updated Company"
+        email: "invalid-email"
       };
 
-      const updatedUser: User = {
-        id: userId,
-        email: "test@test.com",
-        password: "123456",
-        name: "Updated Name",
-        role: "planner",
-        company: "Updated Company",
-        phone: "+1234567890",
-        experience: "5+ years",
-        specialty: "Corporate Events"
-      };
-
-      // Mock email check (for validation)
-      mockedAxios.get.mockResolvedValueOnce({ data: [] } as any);
-      // Mock user update
-      mockedAxios.patch.mockResolvedValueOnce({ data: updatedUser } as any);
-
-      const result = await service.updateUserProfile(userId, updates);
-      
-      expect(result).toEqual(updatedUser);
-      expect(mockedAxios.patch).toHaveBeenCalledWith(
-        `http://localhost:8000/users/${userId}`,
-        updates
-      );
+      await expect(service.updateUserProfile(userId, updates))
+        .rejects.toThrow("Please enter a valid email address");
     });
   });
 
   describe("changePassword", () => {
-    it("changes password successfully", async () => {
+    it("validates password length", async () => {
       const userId = "550e8400-e29b-41d4-a716-446655440001";
       const currentPassword = "oldpassword";
-      const newPassword = "newpassword123";
-
-      const currentUser: User = {
-        id: userId,
-        email: "test@test.com",
-        password: currentPassword,
-        name: "Test User",
-        role: "vendor"
-      };
-
-      const updatedUser: User = {
-        ...currentUser,
-        password: newPassword
-      };
-
-      // Mock getting current user
-      mockedAxios.get.mockResolvedValueOnce({ data: currentUser } as any);
-      // Mock password update
-      mockedAxios.patch.mockResolvedValueOnce({ data: updatedUser } as any);
-
-      await service.changePassword(userId, currentPassword, newPassword);
-
-      expect(mockedAxios.patch).toHaveBeenCalledWith(
-        `http://localhost:8000/users/${userId}`,
-        { password: newPassword }
-      );
-    });
-
-    it("throws error when current password is incorrect", async () => {
-      const userId = "550e8400-e29b-41d4-a716-446655440001";
-      const currentPassword = "wrongpassword";
-      const newPassword = "newpassword123";
-
-      const currentUser: User = {
-        id: userId,
-        email: "test@test.com",
-        password: "correctpassword",
-        name: "Test User",
-        role: "vendor"
-      };
-
-      // Mock getting current user
-      mockedAxios.get.mockResolvedValueOnce({ data: currentUser } as any);
+      const newPassword = "123"; // Too short
 
       await expect(service.changePassword(userId, currentPassword, newPassword))
-        .rejects.toThrow("Current password is incorrect");
+        .rejects.toThrow("New password must be at least 6 characters long");
+    });
+
+    it("validates passwords are different", async () => {
+      const userId = "550e8400-e29b-41d4-a716-446655440001";
+      const password = "samepassword";
+
+      await expect(service.changePassword(userId, password, password))
+        .rejects.toThrow("New password must be different from current password");
     });
   });
 });
