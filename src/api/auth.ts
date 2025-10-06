@@ -73,7 +73,7 @@ export interface GoogleAuthResponse {
   login_provider: string;
 }
 
-// Mock Google authentication function for development
+// Mock Google authentication function for development (only used when Django is completely unavailable)
 async function mockGoogleAuth(idToken: string, role?: string): Promise<GoogleAuthResponse> {
   console.log('Using mock Google authentication with json-server');
 
@@ -127,12 +127,12 @@ export async function apiGoogleLogin(idToken: string, role?: string): Promise<Go
     ...(role && { role })
   };
 
-  console.log('Sending Google auth request:', {
+  console.log('Sending Google auth request to Django backend:', {
     url: `${API_URL}/api/auth/google/`,
     hasIdToken: !!idToken,
     idTokenLength: idToken?.length,
     role: role,
-    payloadKeys: Object.keys(payload)
+    payload: payload
   });
 
   try {
@@ -144,31 +144,30 @@ export async function apiGoogleLogin(idToken: string, role?: string): Promise<Go
       timeout: 10000 // 10 second timeout
     });
 
-    console.log('Google auth API response:', {
+    console.log('✓ Django backend Google auth successful:', {
       status: res.status,
-      statusText: res.statusText,
       hasData: !!res.data,
       dataKeys: res.data ? Object.keys(res.data) : []
     });
 
     return res.data;
   } catch (error: any) {
-    console.error('Google auth API error:', {
+    console.error('✗ Django backend Google auth error:', {
       message: error.message,
       status: error.response?.status,
       statusText: error.response?.statusText,
       responseData: error.response?.data,
       url: error.config?.url,
-      method: error.config?.method,
-      requestData: error.config?.data
+      requestPayload: payload
     });
 
-    // If Django backend fails with 400 status (Invalid token), fall back to mock
-    if (error.response?.status === 400 || error.response?.status === 500 || error.code === 'ERR_NETWORK') {
-      console.warn('Django backend failed, falling back to mock Google authentication');
+    // Only fall back to mock if Django is completely unreachable (network error)
+    if (error.code === 'ERR_NETWORK' || !error.response) {
+      console.warn('⚠ Django backend unreachable, falling back to mock authentication');
       return await mockGoogleAuth(idToken, role);
     }
 
+    // For 400 errors, the issue is with the token/request - don't fall back, throw the error
     throw error;
   }
 }
