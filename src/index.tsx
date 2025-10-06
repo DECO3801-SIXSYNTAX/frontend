@@ -10,6 +10,7 @@ import AppSettings from "./pages/AppSettings";
 import EventSettings from "./pages/EventSettings";
 import EventConfiguration from "./pages/EventConfiguration";
 import LayoutEditor from "./pages/LayoutEditor";
+import EventListForLayout from "./pages/EventListForLayout";
 import Layout from "./components/layout/Layout";
 import { DashboardProvider, useDashboard } from "./contexts/DashboardContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -50,6 +51,8 @@ function AppContent() {
       return <AppSettings />;
     case 'event-settings':
       return <EventSettings />;
+    case 'event-list-for-layout':
+      return <EventListForLayout />;
     case 'layout-editor':
       return <LayoutEditor />;
     default:
@@ -61,7 +64,7 @@ function AppContent() {
       // Handle dynamic layout editor pages
       if (currentPage.startsWith('layout-editor-')) {
         const eventId = currentPage.replace('layout-editor-', '');
-        return <LayoutEditor />;
+        return <LayoutEditor eventId={eventId} />;
       }
       return <SignIn />;
   }
