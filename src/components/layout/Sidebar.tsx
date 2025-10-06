@@ -5,7 +5,7 @@ import {
   Users,
   Activity,
   FileText,
-  BarChart3,
+  Layout as LayoutIcon,
   Settings,
   ChevronLeft,
   ChevronRight
@@ -46,10 +46,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
     {
       id: 'layout-editor',
       label: 'Layout Editor',
-      icon: BarChart3,
-      page: null,
-      active: false,
-      disabled: true
+      icon: LayoutIcon,
+      page: 'event-list-for-layout' as const,
+      active: currentPage === 'event-list-for-layout' || currentPage.startsWith('layout-editor'),
+      disabled: false
     },
     {
       id: 'reports',
