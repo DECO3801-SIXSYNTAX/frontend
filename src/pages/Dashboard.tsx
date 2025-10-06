@@ -12,7 +12,8 @@ import {
   Upload,
   UserPlus,
   TrendingUp,
-  Activity
+  Activity,
+  Layout as LayoutIcon
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { DashboardService } from '../services/DashboardService';
@@ -388,6 +389,16 @@ const Dashboard: React.FC = () => {
               >
                 <UserPlus className="w-5 h-5" />
                 <span>Invite Team Member</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setCurrentPage('layout-editor')}
+                className="w-full flex items-center space-x-3 p-3 bg-purple-500 text-white rounded-lg hover:shadow-lg transition-all"
+              >
+                <LayoutIcon className="w-5 h-5" />
+                <span>Layout Editor</span>
               </motion.button>
             </div>
           </motion.div>

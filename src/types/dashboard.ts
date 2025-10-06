@@ -117,7 +117,8 @@ export type CurrentPage =
   | 'activity-log'
   | 'app-settings'
   | 'event-settings'
-  | string; // Allow dynamic event config pages like 'event-config-{eventId}'
+  | 'layout-editor'
+  | string; // Allow dynamic event config pages like 'event-config-{eventId}' or 'layout-editor-{eventId}'
 
 export interface DashboardContextType {
   currentPage: CurrentPage;

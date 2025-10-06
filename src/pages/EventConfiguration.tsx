@@ -19,7 +19,8 @@ import {
   Plus,
   Palette,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Layout as LayoutIcon
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { Event } from '../types/dashboard';
@@ -99,6 +100,7 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
   const tabs = [
     { id: 'general', label: 'General Settings', icon: FileText },
     { id: 'qr', label: 'QR Code Management', icon: QrCode },
+    { id: 'layout', label: 'Layout Editor', icon: LayoutIcon },
     { id: 'collaboration', label: 'Collaboration', icon: Users },
     { id: 'history', label: 'Version History', icon: History }
   ];
@@ -824,6 +826,91 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
                     <Mail className="h-4 w-4 mr-2" />
                     Email QR Codes (Upcoming Feature)
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'layout' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* Layout Editor Integration */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Event Layout Design</h2>
+                <p className="text-gray-600 mb-6">
+                  Design your event seating arrangement, floor plan, and guest assignments using our interactive layout editor.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-2">Features Available</h3>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Drag-and-drop table placement</li>
+                      <li>• Guest assignment to tables</li>
+                      <li>• VIP and special seating areas</li>
+                      <li>• Stage and catering station placement</li>
+                      <li>• Real-time collaboration</li>
+                      <li>• Export seating charts and reports</li>
+                    </ul>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-2">Layout Statistics</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Expected Attendees:</span>
+                        <span className="font-medium">{event.expectedAttendees}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Dietary Requirements:</span>
+                        <span className="font-medium">{event.dietaryNeeds}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Accessibility Needs:</span>
+                        <span className="font-medium">{event.accessibilityNeeds}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => setCurrentPage(`layout-editor-${eventId}`)}
+                    className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <LayoutIcon className="h-5 w-5 mr-2" />
+                    Open Layout Editor
+                  </button>
+
+                  <button className="flex items-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                    <Eye className="h-5 w-5 mr-2" />
+                    Preview Layout
+                  </button>
+                </div>
+              </div>
+
+              {/* Layout Templates */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Layout Templates</h2>
+                <p className="text-gray-600 mb-4">
+                  Start with a pre-designed template or create your layout from scratch.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'Conference Style', description: 'Theater-style seating with stage', image: '🎭' },
+                    { name: 'Banquet Style', description: 'Round tables for dining events', image: '🍽️' },
+                    { name: 'Cocktail Style', description: 'Standing reception layout', image: '🥂' }
+                  ].map((template, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                      <div className="text-4xl mb-2">{template.image}</div>
+                      <h3 className="font-medium text-gray-900 mb-1">{template.name}</h3>
+                      <p className="text-sm text-gray-600">{template.description}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </motion.div>

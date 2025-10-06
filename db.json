@@ -784,24 +784,150 @@
           "item": {
             "item": {
               "item": {
+                "item": {
+                  "item": {
+                    "item": {
+                      "item": {
+                        "item": {
+                          "item": {
+                            "item": {
+                              "item": {
+                                "item": {
+                                  "item": {
+                                    "item": {
+                                      "item": {
+                                        "item": {
+                                          "appearance": {
+                                            "theme": "light",
+                                            "primaryColor": "indigo",
+                                            "fontSize": "medium",
+                                            "reducedMotion": false,
+                                            "highContrast": false,
+                                            "compactMode": false
+                                          },
+                                          "system": {
+                                            "soundEnabled": true,
+                                            "notificationsEnabled": true,
+                                            "language": "en",
+                                            "autoSave": true
+                                          }
+                                        },
+                                        "appearance": {
+                                          "theme": "dark",
+                                          "primaryColor": "indigo",
+                                          "fontSize": "medium",
+                                          "reducedMotion": false,
+                                          "highContrast": false,
+                                          "compactMode": false
+                                        }
+                                      },
+                                      "appearance": {
+                                        "theme": "light",
+                                        "primaryColor": "indigo",
+                                        "fontSize": "medium",
+                                        "reducedMotion": false,
+                                        "highContrast": false,
+                                        "compactMode": false
+                                      }
+                                    },
+                                    "appearance": {
+                                      "theme": "dark",
+                                      "primaryColor": "indigo",
+                                      "fontSize": "medium",
+                                      "reducedMotion": false,
+                                      "highContrast": false,
+                                      "compactMode": false
+                                    }
+                                  },
+                                  "system": {
+                                    "soundEnabled": true,
+                                    "notificationsEnabled": true,
+                                    "language": "id",
+                                    "autoSave": true
+                                  }
+                                },
+                                "appearance": {
+                                  "theme": "light",
+                                  "primaryColor": "indigo",
+                                  "fontSize": "medium",
+                                  "reducedMotion": false,
+                                  "highContrast": false,
+                                  "compactMode": false
+                                }
+                              },
+                              "system": {
+                                "soundEnabled": true,
+                                "notificationsEnabled": true,
+                                "language": "en",
+                                "autoSave": true
+                              }
+                            },
+                            "appearance": {
+                              "theme": "dark",
+                              "primaryColor": "indigo",
+                              "fontSize": "medium",
+                              "reducedMotion": false,
+                              "highContrast": false,
+                              "compactMode": false
+                            }
+                          },
+                          "appearance": {
+                            "theme": "dark",
+                            "primaryColor": "blue",
+                            "fontSize": "medium",
+                            "reducedMotion": false,
+                            "highContrast": false,
+                            "compactMode": false
+                          }
+                        },
+                        "appearance": {
+                          "theme": "dark",
+                          "primaryColor": "green",
+                          "fontSize": "medium",
+                          "reducedMotion": false,
+                          "highContrast": false,
+                          "compactMode": false
+                        }
+                      },
+                      "appearance": {
+                        "theme": "dark",
+                        "primaryColor": "purple",
+                        "fontSize": "medium",
+                        "reducedMotion": false,
+                        "highContrast": false,
+                        "compactMode": false
+                      }
+                    },
+                    "appearance": {
+                      "theme": "dark",
+                      "primaryColor": "indigo",
+                      "fontSize": "medium",
+                      "reducedMotion": false,
+                      "highContrast": false,
+                      "compactMode": false
+                    }
+                  },
+                  "appearance": {
+                    "theme": "dark",
+                    "primaryColor": "purple",
+                    "fontSize": "medium",
+                    "reducedMotion": false,
+                    "highContrast": false,
+                    "compactMode": false
+                  }
+                },
                 "appearance": {
                   "theme": "light",
-                  "primaryColor": "indigo",
+                  "primaryColor": "purple",
                   "fontSize": "medium",
                   "reducedMotion": false,
                   "highContrast": false,
                   "compactMode": false
-                },
-                "system": {
-                  "soundEnabled": true,
-                  "notificationsEnabled": true,
-                  "language": "en",
-                  "autoSave": true
                 }
               },
               "appearance": {
                 "theme": "dark",
-                "primaryColor": "indigo",
+                "primaryColor": "purple",
                 "fontSize": "medium",
                 "reducedMotion": false,
                 "highContrast": false,
@@ -810,7 +936,7 @@
             },
             "appearance": {
               "theme": "light",
-              "primaryColor": "indigo",
+              "primaryColor": "purple",
               "fontSize": "medium",
               "reducedMotion": false,
               "highContrast": false,
@@ -818,35 +944,39 @@
             }
           },
           "appearance": {
-            "theme": "dark",
-            "primaryColor": "indigo",
-            "fontSize": "medium",
+            "theme": "light",
+            "primaryColor": "purple",
+            "fontSize": "small",
             "reducedMotion": false,
             "highContrast": false,
             "compactMode": false
           }
         },
-        "system": {
-          "soundEnabled": true,
-          "notificationsEnabled": true,
-          "language": "id",
-          "autoSave": true
+        "appearance": {
+          "theme": "light",
+          "primaryColor": "purple",
+          "fontSize": "large",
+          "reducedMotion": false,
+          "highContrast": false,
+          "compactMode": false
         }
       },
       "appearance": {
         "theme": "light",
-        "primaryColor": "indigo",
-        "fontSize": "medium",
+        "primaryColor": "purple",
+        "fontSize": "large",
         "reducedMotion": false,
-        "highContrast": false,
+        "highContrast": true,
         "compactMode": false
       }
     },
-    "system": {
-      "soundEnabled": true,
-      "notificationsEnabled": true,
-      "language": "en",
-      "autoSave": true
+    "appearance": {
+      "theme": "light",
+      "primaryColor": "purple",
+      "fontSize": "large",
+      "reducedMotion": false,
+      "highContrast": false,
+      "compactMode": false
     }
   },
   "eventConfigs": [
@@ -862,7 +992,7 @@
       "qrCodes": {
         "guestCheckin": true,
         "seatLookup": false,
-        "generatedAt": "2025-09-22T08:54:43.699Z"
+        "generatedAt": "2025-09-23T05:24:12.073Z"
       },
       "collaboration": {
         "members": [
