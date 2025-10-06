@@ -1,44 +1,188 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Stage, Layer, Rect, Circle, Text, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Text, Transformer, Group, Line, Star, RegularPolygon, Ellipse, Arc } from 'react-konva';
 import Konva from 'konva';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Grid3X3,
   ZoomIn,
   ZoomOut,
-  RotateCw,
   Save,
   Download,
   Users,
   Search,
-  Settings,
   Plus,
-  Minus,
   Eye,
   Edit,
   FileText,
-  ClipboardList,
   Map,
   Utensils,
   Accessibility,
   Crown,
   Mic,
-  Calendar,
-  Filter,
-  Copy,
+  Menu,
+  X,
   Trash2,
-  Undo,
-  Redo,
-  Share2,
-  Menu
+  Square,
+  Hexagon,
+  Triangle,
+  Presentation,
+  DoorOpen,
+  UtensilsCrossed,
+  Sparkles,
+  Ruler,
+  Settings,
+  Maximize
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import Layout from '../components/layout/Layout';
+import axios from 'axios';
+
+const DASHBOARD_API_URL = process.env.REACT_APP_DASHBOARD_API_URL || "http://localhost:3002";
+
+// Configuration-based element types with realistic dimensions
+interface ElementConfig {
+  id: string;
+  shape: 'rectangle' | 'circle' | 'hexagon' | 'triangle' | 'star' | 'ellipse' | 'rounded-rect' | 'stage' | 'door';
+  icon: any;
+  label: string;
+  color: string;
+  textColor: string;
+  defaultWidth: number;
+  defaultHeight: number;
+  defaultRadius?: number;
+  description: string;
+}
+
+const ELEMENT_CONFIGS: ElementConfig[] = [
+  {
+    id: 'table',
+    shape: 'rounded-rect',
+    icon: Square,
+    label: 'Rectangular Table',
+    color: '#8B5CF6',
+    textColor: '#FFFFFF',
+    defaultWidth: 180,
+    defaultHeight: 90,
+    description: '6-8 person dining table'
+  },
+  {
+    id: 'round-table',
+    shape: 'circle',
+    icon: Circle,
+    label: 'Round Table',
+    color: '#3B82F6',
+    textColor: '#FFFFFF',
+    defaultWidth: 120,
+    defaultHeight: 120,
+    defaultRadius: 60,
+    description: '8-10 person round table'
+  },
+  {
+    id: 'cocktail-table',
+    shape: 'circle',
+    icon: Circle,
+    label: 'Cocktail Table',
+    color: '#06B6D4',
+    textColor: '#FFFFFF',
+    defaultWidth: 60,
+    defaultHeight: 60,
+    defaultRadius: 30,
+    description: 'Standing cocktail table'
+  },
+  {
+    id: 'vip',
+    shape: 'rounded-rect',
+    icon: Crown,
+    label: 'VIP Lounge',
+    color: '#F59E0B',
+    textColor: '#000000',
+    defaultWidth: 240,
+    defaultHeight: 160,
+    description: 'VIP seating area'
+  },
+  {
+    id: 'stage',
+    shape: 'stage',
+    icon: Presentation,
+    label: 'Stage',
+    color: '#EF4444',
+    textColor: '#FFFFFF',
+    defaultWidth: 400,
+    defaultHeight: 200,
+    description: 'Presentation stage'
+  },
+  {
+    id: 'dance-floor',
+    shape: 'rounded-rect',
+    icon: Sparkles,
+    label: 'Dance Floor',
+    color: '#EC4899',
+    textColor: '#FFFFFF',
+    defaultWidth: 300,
+    defaultHeight: 300,
+    description: 'Dancing area'
+  },
+  {
+    id: 'entrance',
+    shape: 'door',
+    icon: DoorOpen,
+    label: 'Entrance',
+    color: '#6B7280',
+    textColor: '#FFFFFF',
+    defaultWidth: 120,
+    defaultHeight: 40,
+    description: 'Entry/exit door'
+  },
+  {
+    id: 'catering',
+    shape: 'rounded-rect',
+    icon: UtensilsCrossed,
+    label: 'Buffet Station',
+    color: '#F97316',
+    textColor: '#FFFFFF',
+    defaultWidth: 200,
+    defaultHeight: 100,
+    description: 'Food service area'
+  },
+  {
+    id: 'bar',
+    shape: 'rounded-rect',
+    icon: Utensils,
+    label: 'Bar',
+    color: '#A855F7',
+    textColor: '#FFFFFF',
+    defaultWidth: 250,
+    defaultHeight: 80,
+    description: 'Bar counter'
+  },
+  {
+    id: 'demo-zone',
+    shape: 'hexagon',
+    icon: Mic,
+    label: 'Demo Zone',
+    color: '#10B981',
+    textColor: '#FFFFFF',
+    defaultWidth: 180,
+    defaultHeight: 180,
+    description: 'Product demonstration area'
+  },
+  {
+    id: 'lounge',
+    shape: 'ellipse',
+    icon: Users,
+    label: 'Lounge Area',
+    color: '#14B8A6',
+    textColor: '#FFFFFF',
+    defaultWidth: 200,
+    defaultHeight: 150,
+    description: 'Casual seating'
+  }
+];
 
 interface LayoutElement {
   id: string;
-  type: 'table' | 'round-table' | 'vip' | 'demo-zone' | 'stage' | 'entrance' | 'catering' | 'decoration';
+  type: string;
   x: number;
   y: number;
   width: number;
@@ -47,8 +191,8 @@ interface LayoutElement {
   capacity: number;
   name: string;
   assignedGuests: string[];
-  color: string;
-  radius?: number; // For round tables
+  config: ElementConfig;
+  radius?: number;
 }
 
 interface Guest {
@@ -63,14 +207,27 @@ interface Guest {
   seatNumber?: number;
 }
 
-interface LayoutStats {
-  totalCapacity: number;
-  assignedGuests: number;
-  dietaryRequirements: number;
-  accessibilityNeeds: number;
+interface RoomBoundary {
+  vertices: { x: number; y: number }[];
+  closed: boolean;
 }
 
-const LayoutEditor: React.FC = () => {
+interface FloorPlan {
+  id?: string;
+  eventId?: string;
+  canvasSize: { width: number; height: number };
+  pixelsPerMeter: number;
+  elements: LayoutElement[];
+  roomBoundary: RoomBoundary | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface LayoutEditorProps {
+  eventId?: string;
+}
+
+const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
   const { setCurrentPage } = useDashboard();
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -78,45 +235,30 @@ const LayoutEditor: React.FC = () => {
 
   // Canvas state
   const [stageScale, setStageScale] = useState(1);
+  const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [gridSize, setGridSize] = useState(20);
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit');
   const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false);
   const [dragElementType, setDragElementType] = useState<string | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
+  const [canvasSize, setCanvasSize] = useState({ width: 2000, height: 1500 });
+  const [tempCanvasSize, setTempCanvasSize] = useState({ width: 2000, height: 1500 });
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pixelsPerMeter, setPixelsPerMeter] = useState(50);
+  const [showRuler, setShowRuler] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [floorPlanId, setFloorPlanId] = useState<string | null>(null);
+  const [showCanvasSettings, setShowCanvasSettings] = useState(false);
+
+  // Room boundary state
+  const [roomBoundary, setRoomBoundary] = useState<RoomBoundary | null>(null);
+  const [isDrawingRoom, setIsDrawingRoom] = useState(false);
+  const [tempVertex, setTempVertex] = useState<{ x: number; y: number } | null>(null);
 
   // Layout state
-  const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([
-    {
-      id: 'table-1',
-      type: 'table',
-      x: 100,
-      y: 100,
-      width: 120,
-      height: 60,
-      rotation: 0,
-      capacity: 6,
-      name: 'Table 1',
-      assignedGuests: [],
-      color: '#8B5CF6'
-    },
-    {
-      id: 'round-table-1',
-      type: 'round-table',
-      x: 300,
-      y: 150,
-      width: 80,
-      height: 80,
-      rotation: 0,
-      capacity: 8,
-      name: 'Round Table 1',
-      assignedGuests: [],
-      color: '#3B82F6',
-      radius: 40
-    }
-  ]);
+  const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
 
   // Guest management state
   const [guests, setGuests] = useState<Guest[]>([
@@ -149,61 +291,129 @@ const LayoutEditor: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGuestFilter, setSelectedGuestFilter] = useState('all');
 
-  // Layout statistics
-  const [layoutStats, setLayoutStats] = useState<LayoutStats>({
-    totalCapacity: 0,
-    assignedGuests: 0,
-    dietaryRequirements: 0,
-    accessibilityNeeds: 0
-  });
-
   // Collaboration state
   const [onlineUsers] = useState([
     { id: 'user1', name: 'Alice Chen', avatar: '', color: '#EF4444' },
     { id: 'user2', name: 'Bob Smith', avatar: '', color: '#10B981' }
   ]);
 
-  const elementTypes = [
-    { type: 'table', icon: Grid3X3, label: 'Table', color: '#8B5CF6' },
-    { type: 'round-table', icon: Circle, label: 'Round Table', color: '#3B82F6' },
-    { type: 'vip', icon: Crown, label: 'VIP Area', color: '#F59E0B' },
-    { type: 'demo-zone', icon: Mic, label: 'Demo Zone', color: '#10B981' },
-    { type: 'stage', icon: Calendar, label: 'Stage', color: '#EF4444' },
-    { type: 'entrance', icon: ArrowLeft, label: 'Entrance', color: '#6B7280' },
-    { type: 'catering', icon: Utensils, label: 'Catering', color: '#F97316' }
-  ];
-
-  // Update layout statistics
+  // Load floor plan on mount
   useEffect(() => {
-    const totalCapacity = layoutElements.reduce((sum, element) => sum + element.capacity, 0);
-    const assignedGuests = layoutElements.reduce((sum, element) => sum + element.assignedGuests.length, 0);
-    const dietaryRequirements = guests.filter(guest => guest.dietaryRestrictions.length > 0).length;
-    const accessibilityNeeds = guests.filter(guest => guest.accessibilityNeeds.length > 0).length;
+    if (eventId) {
+      loadFloorPlan();
+    }
+  }, [eventId]);
 
-    setLayoutStats({
-      totalCapacity,
-      assignedGuests,
-      dietaryRequirements,
-      accessibilityNeeds
-    });
-  }, [layoutElements, guests]);
+  const loadFloorPlan = async () => {
+    try {
+      const response = await axios.get<FloorPlan[]>(`${DASHBOARD_API_URL}/floorplans`);
+      if (response.data && response.data.length > 0) {
+        // Find floor plan for this specific event
+        const eventPlan = response.data.find(plan => plan.eventId === eventId);
+        if (eventPlan) {
+          setFloorPlanId(eventPlan.id || null);
+          setCanvasSize(eventPlan.canvasSize);
+          setTempCanvasSize(eventPlan.canvasSize);
+          setPixelsPerMeter(eventPlan.pixelsPerMeter);
+          setLayoutElements(eventPlan.elements);
+          setRoomBoundary(eventPlan.roomBoundary);
+          console.log('Loaded existing floor plan for event:', eventId);
+        } else {
+          console.log('No existing floor plan found for event:', eventId);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading floor plan:', error);
+    }
+  };
 
-  // Update canvas size based on container
-  useEffect(() => {
-    const updateCanvasSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setCanvasSize({
-          width: rect.width,
-          height: rect.height
+  const saveFloorPlan = async () => {
+    setIsSaving(true);
+    try {
+      const floorPlan: FloorPlan = {
+        eventId: eventId || 'event-1',
+        canvasSize,
+        pixelsPerMeter,
+        elements: layoutElements,
+        roomBoundary,
+        updatedAt: new Date().toISOString()
+      };
+
+      console.log('Saving floor plan:', floorPlan);
+
+      if (floorPlanId) {
+        await axios.put(`${DASHBOARD_API_URL}/floorplans/${floorPlanId}`, {
+          ...floorPlan,
+          id: floorPlanId
+        });
+        console.log('Floor plan updated successfully');
+      } else {
+        const response = await axios.post<FloorPlan>(`${DASHBOARD_API_URL}/floorplans`, {
+          ...floorPlan,
+          createdAt: new Date().toISOString()
+        });
+        setFloorPlanId(response.data.id || null);
+        console.log('Floor plan created successfully:', response.data);
+      }
+
+      alert('Floor plan saved successfully!');
+
+      // Redirect back to event list for layout
+      setCurrentPage('event-list-for-layout');
+    } catch (error: any) {
+      console.error('Error saving floor plan:', error);
+      const errorMessage = error.response?.data?.message
+        || error.message
+        || 'Unknown error occurred';
+
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        alert('Failed to save floor plan: Cannot connect to server.\n\nPlease ensure json-server is running:\nnpm run server');
+      } else {
+        alert(`Failed to save floor plan: ${errorMessage}`);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const applyCanvasSize = () => {
+    const oldSize = canvasSize;
+    const newSize = tempCanvasSize;
+
+    // Only scale if canvas size actually changed
+    if (oldSize.width !== newSize.width || oldSize.height !== newSize.height) {
+      const scaleX = newSize.width / oldSize.width;
+      const scaleY = newSize.height / oldSize.height;
+
+      setLayoutElements(elements =>
+        elements.map(element => ({
+          ...element,
+          x: element.x * scaleX,
+          y: element.y * scaleY,
+          width: element.width * scaleX,
+          height: element.height * scaleY,
+          radius: element.radius ? element.radius * Math.min(scaleX, scaleY) : undefined
+        }))
+      );
+
+      // Scale room boundary
+      if (roomBoundary) {
+        setRoomBoundary({
+          ...roomBoundary,
+          vertices: roomBoundary.vertices.map(v => ({
+            x: v.x * scaleX,
+            y: v.y * scaleY
+          }))
         });
       }
-    };
 
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
-  }, [sidebarOpen]);
+      setCanvasSize(newSize);
+    }
+
+    // Update grid size based on pixels per meter
+    setGridSize(pixelsPerMeter / 2.5);
+    setShowCanvasSettings(false);
+  };
 
   // Update transformer when selection changes
   useEffect(() => {
@@ -233,28 +443,27 @@ const LayoutEditor: React.FC = () => {
     };
 
     const newScale = e.evt.deltaY > 0 ? stageScale / scaleBy : stageScale * scaleBy;
-    const clampedScale = Math.max(0.1, Math.min(3, newScale));
+    const clampedScale = Math.max(0.1, Math.min(5, newScale));
 
     setStageScale(clampedScale);
 
-    // Update stage scale without changing position to avoid unwanted movement
-    if (stageRef.current) {
-      stageRef.current.scale({ x: clampedScale, y: clampedScale });
-    }
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clampedScale,
+      y: pointer.y - mousePointTo.y * clampedScale
+    };
+
+    setStagePosition(newPos);
   };
 
   const handleZoom = (direction: 'in' | 'out') => {
     const scaleBy = 1.2;
     const newScale = direction === 'in' ? stageScale * scaleBy : stageScale / scaleBy;
-    const clampedScale = Math.max(0.1, Math.min(3, newScale));
+    const clampedScale = Math.max(0.1, Math.min(5, newScale));
     setStageScale(clampedScale);
-
-    if (stageRef.current) {
-      stageRef.current.scale({ x: clampedScale, y: clampedScale });
-    }
   };
 
   const handleMouseDown = (type: string) => {
+    if (mode === 'preview') return;
     setIsDraggingFromSidebar(true);
     setDragElementType(type);
   };
@@ -270,10 +479,8 @@ const LayoutEditor: React.FC = () => {
       const pointer = stage.getPointerPosition();
 
       if (pointer) {
-        // Adjust for stage scale and position
         const x = (pointer.x - stage.x()) / stage.scaleX();
         const y = (pointer.y - stage.y()) / stage.scaleY();
-
         addElement(dragElementType, x, y);
       }
     }
@@ -281,27 +488,77 @@ const LayoutEditor: React.FC = () => {
   };
 
   const handleStageClick = (e: any) => {
-    // Check if we clicked on empty area
     const target = e.target;
-    if (target === target.getStage()) {
+
+    if (isDrawingRoom) {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+
+      const x = (pointer.x - stage.x()) / stage.scaleX();
+      const y = (pointer.y - stage.y()) / stage.scaleY();
+
+      const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
+      const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
+
+      if (!roomBoundary) {
+        setRoomBoundary({ vertices: [{ x: snappedX, y: snappedY }], closed: false });
+      } else if (!roomBoundary.closed) {
+        const firstVertex = roomBoundary.vertices[0];
+        const distance = Math.sqrt(Math.pow(snappedX - firstVertex.x, 2) + Math.pow(snappedY - firstVertex.y, 2));
+
+        if (distance < 30 && roomBoundary.vertices.length > 2) {
+          setRoomBoundary({ ...roomBoundary, closed: true });
+          setIsDrawingRoom(false);
+        } else {
+          setRoomBoundary({
+            ...roomBoundary,
+            vertices: [...roomBoundary.vertices, { x: snappedX, y: snappedY }]
+          });
+        }
+      }
+    } else if (target === target.getStage()) {
       setSelectedId(null);
     }
   };
 
+  const handleStageMouseMove = (e: any) => {
+    if (isDrawingRoom && roomBoundary && !roomBoundary.closed) {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+
+      const x = (pointer.x - stage.x()) / stage.scaleX();
+      const y = (pointer.y - stage.y()) / stage.scaleY();
+
+      const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
+      const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
+
+      setTempVertex({ x: snappedX, y: snappedY });
+    }
+  };
+
   const addElement = (type: string, x?: number, y?: number) => {
+    const config = ELEMENT_CONFIGS.find(c => c.id === type);
+    if (!config) return;
+
     const newElement: LayoutElement = {
       id: `${type}-${Date.now()}`,
-      type: type as LayoutElement['type'],
-      x: x ?? (200 + Math.random() * 100),
-      y: y ?? (200 + Math.random() * 100),
-      width: type === 'round-table' ? 80 : 120,
-      height: type === 'round-table' ? 80 : 60,
+      type: type,
+      x: x ?? (canvasSize.width / 2),
+      y: y ?? (canvasSize.height / 2),
+      width: config.defaultWidth,
+      height: config.defaultHeight,
       rotation: 0,
-      capacity: type === 'round-table' ? 8 : 6,
-      name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${layoutElements.length + 1}`,
+      capacity: config.shape === 'circle' ? (config.defaultRadius! > 40 ? 8 : 4) : 6,
+      name: `${config.label} ${layoutElements.filter(e => e.type === type).length + 1}`,
       assignedGuests: [],
-      color: elementTypes.find(et => et.type === type)?.color || '#8B5CF6',
-      radius: type === 'round-table' ? 40 : undefined
+      config: config,
+      radius: config.defaultRadius
     };
 
     setLayoutElements([...layoutElements, newElement]);
@@ -322,31 +579,6 @@ const LayoutEditor: React.FC = () => {
     }
   };
 
-  const assignGuestToTable = (guestId: string, tableId: string) => {
-    const table = layoutElements.find(el => el.id === tableId);
-    if (!table || table.assignedGuests.length >= table.capacity) return;
-
-    // Remove guest from any other table
-    setLayoutElements(elements =>
-      elements.map(element => ({
-        ...element,
-        assignedGuests: element.assignedGuests.filter(id => id !== guestId)
-      }))
-    );
-
-    // Add guest to new table
-    updateElement(tableId, {
-      assignedGuests: [...table.assignedGuests, guestId]
-    });
-
-    // Update guest table assignment
-    setGuests(guests =>
-      guests.map(guest =>
-        guest.id === guestId ? { ...guest, tableId } : guest
-      )
-    );
-  };
-
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          guest.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -363,72 +595,331 @@ const LayoutEditor: React.FC = () => {
 
   const selectedElement = layoutElements.find(el => el.id === selectedId);
 
-  const exportSeatingChart = () => {
-    // Implementation for exporting seating chart
-    console.log('Exporting seating chart...');
+  const getTextWidth = (text: string, fontSize: number) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return 0;
+    context.font = `bold ${fontSize}px Arial`;
+    return context.measureText(text).width;
   };
 
-  const exportCateringReport = () => {
-    // Implementation for exporting catering report
-    console.log('Exporting catering report...');
-  };
+  const renderShape = (element: LayoutElement) => {
+    const { config } = element;
+    const fontSize = Math.max(10, Math.min(14, element.width / 12));
+    const textWidth = getTextWidth(element.name, fontSize);
 
-  const exportGuestList = () => {
-    // Implementation for exporting guest list
-    console.log('Exporting guest list...');
-  };
+    let textFits = false;
+    if (config.shape === 'circle') {
+      textFits = textWidth < (element.radius! * 1.6);
+    } else if (config.shape === 'ellipse') {
+      textFits = textWidth < (element.width * 0.8);
+    } else {
+      textFits = textWidth < (element.width - 20);
+    }
 
-  const exportFloorPlan = () => {
-    // Implementation for exporting floor plan PDF
-    console.log('Exporting floor plan...');
+    const labelOffsetY = config.shape === 'circle'
+      ? element.radius! + 15
+      : config.shape === 'ellipse'
+      ? element.height / 2 + 15
+      : element.height + 15;
+
+    return (
+      <Group
+        key={element.id}
+        id={element.id}
+        x={element.x}
+        y={element.y}
+        rotation={element.rotation}
+        draggable={mode === 'edit'}
+        onClick={() => mode === 'edit' && setSelectedId(element.id)}
+        onDragEnd={(e: any) => {
+          const newX = snapToGrid ? Math.round(e.target.x() / gridSize) * gridSize : e.target.x();
+          const newY = snapToGrid ? Math.round(e.target.y() / gridSize) * gridSize : e.target.y();
+          updateElement(element.id, { x: newX, y: newY });
+        }}
+        onTransformEnd={(e: any) => {
+          const node = e.target;
+          const scaleX = node.scaleX();
+          const scaleY = node.scaleY();
+
+          node.scaleX(1);
+          node.scaleY(1);
+
+          updateElement(element.id, {
+            x: node.x(),
+            y: node.y(),
+            width: Math.max(20, node.width() * scaleX),
+            height: Math.max(20, node.height() * scaleY),
+            rotation: node.rotation(),
+            radius: element.radius ? Math.max(20, element.radius * Math.min(scaleX, scaleY)) : undefined
+          });
+        }}
+      >
+        {/* Circle shape */}
+        {config.shape === 'circle' && (
+          <Circle
+            radius={element.radius || 40}
+            fill={config.color}
+            stroke="#374151"
+            strokeWidth={2}
+            shadowColor="rgba(0,0,0,0.3)"
+            shadowBlur={5}
+            shadowOffset={{ x: 2, y: 2 }}
+          />
+        )}
+
+        {/* Rectangle with rounded corners */}
+        {config.shape === 'rounded-rect' && (
+          <Rect
+            width={element.width}
+            height={element.height}
+            fill={config.color}
+            stroke="#374151"
+            strokeWidth={2}
+            cornerRadius={8}
+            shadowColor="rgba(0,0,0,0.3)"
+            shadowBlur={5}
+            shadowOffset={{ x: 2, y: 2 }}
+          />
+        )}
+
+        {/* Ellipse shape */}
+        {config.shape === 'ellipse' && (
+          <Ellipse
+            radiusX={element.width / 2}
+            radiusY={element.height / 2}
+            fill={config.color}
+            stroke="#374151"
+            strokeWidth={2}
+            shadowColor="rgba(0,0,0,0.3)"
+            shadowBlur={5}
+            shadowOffset={{ x: 2, y: 2 }}
+          />
+        )}
+
+        {/* Hexagon shape */}
+        {config.shape === 'hexagon' && (
+          <RegularPolygon
+            sides={6}
+            radius={element.width / 2}
+            fill={config.color}
+            stroke="#374151"
+            strokeWidth={2}
+            shadowColor="rgba(0,0,0,0.3)"
+            shadowBlur={5}
+            shadowOffset={{ x: 2, y: 2 }}
+          />
+        )}
+
+        {/* Stage shape (trapezoid) */}
+        {config.shape === 'stage' && (
+          <>
+            <Line
+              points={[
+                20, 0,
+                element.width - 20, 0,
+                element.width, element.height,
+                0, element.height
+              ]}
+              closed
+              fill={config.color}
+              stroke="#374151"
+              strokeWidth={3}
+              shadowColor="rgba(0,0,0,0.3)"
+              shadowBlur={5}
+              shadowOffset={{ x: 2, y: 2 }}
+            />
+            {/* Stage steps */}
+            <Rect
+              y={element.height - 15}
+              width={element.width}
+              height={15}
+              fill="#000000"
+              opacity={0.2}
+            />
+          </>
+        )}
+
+        {/* Door shape */}
+        {config.shape === 'door' && (
+          <>
+            <Rect
+              width={element.width}
+              height={element.height}
+              fill={config.color}
+              stroke="#374151"
+              strokeWidth={2}
+              cornerRadius={4}
+            />
+            <Arc
+              x={element.width * 0.25}
+              y={element.height / 2}
+              innerRadius={0}
+              outerRadius={element.width * 0.2}
+              angle={90}
+              rotation={-45}
+              fill="#FFFFFF"
+              opacity={0.3}
+            />
+          </>
+        )}
+
+        {/* Text inside shape if it fits */}
+        {textFits && (
+          <Text
+            text={element.name}
+            fontSize={fontSize}
+            fill={config.textColor}
+            fontStyle="bold"
+            width={config.shape === 'circle' ? element.radius! * 2 : element.width}
+            height={config.shape === 'circle' ? element.radius! * 2 : element.height}
+            align="center"
+            verticalAlign="middle"
+            offsetX={config.shape === 'circle' ? element.radius : 0}
+            offsetY={config.shape === 'circle' ? element.radius : 0}
+          />
+        )}
+
+        {/* Labeled chip below if text doesn't fit */}
+        {!textFits && (
+          <Group y={labelOffsetY}>
+            <Rect
+              width={textWidth + 16}
+              height={22}
+              fill={config.color}
+              cornerRadius={11}
+              offsetX={(textWidth + 16) / 2}
+              stroke="#374151"
+              strokeWidth={1}
+            />
+            <Text
+              text={element.name}
+              fontSize={11}
+              fill={config.textColor}
+              fontStyle="bold"
+              align="center"
+              width={textWidth + 16}
+              height={22}
+              verticalAlign="middle"
+              offsetX={(textWidth + 16) / 2}
+            />
+          </Group>
+        )}
+
+        {/* Capacity indicator */}
+        {element.assignedGuests.length > 0 && (
+          <Group y={labelOffsetY + (textFits ? 0 : 28)}>
+            <Rect
+              width={60}
+              height={18}
+              fill="#FFFFFF"
+              cornerRadius={9}
+              offsetX={30}
+              stroke="#374151"
+              strokeWidth={1}
+            />
+            <Text
+              text={`${element.assignedGuests.length}/${element.capacity}`}
+              fontSize={10}
+              fill="#374151"
+              fontStyle="bold"
+              align="center"
+              width={60}
+              height={18}
+              verticalAlign="middle"
+              offsetX={30}
+            />
+          </Group>
+        )}
+      </Group>
+    );
   };
 
   const content = (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Layout Editor</h2>
-                <p className="text-sm text-gray-500">Design your event layout</p>
-              </div>
-            )}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
+      <AnimatePresence>
         {sidebarOpen && (
-          <>
+          <motion.div
+            initial={{ x: -320 }}
+            animate={{ x: 0 }}
+            exit={{ x: -320 }}
+            transition={{ duration: 0.3 }}
+            className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden"
+          >
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Layout Editor</h2>
+                  <p className="text-sm text-gray-500">Design your event layout</p>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
             {/* Layout Elements */}
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-4 border-b border-gray-200 flex-shrink-0 overflow-y-auto max-h-96">
               <h3 className="text-sm font-medium text-gray-900 mb-3">Layout Elements</h3>
               <div className="grid grid-cols-2 gap-2">
-                {elementTypes.map(({ type, icon: Icon, label, color }) => (
+                {ELEMENT_CONFIGS.map(({ id, icon: Icon, label, color, description }) => (
                   <button
-                    key={type}
-                    onMouseDown={() => handleMouseDown(type)}
+                    key={id}
+                    onMouseDown={() => handleMouseDown(id)}
                     onMouseUp={handleMouseUp}
-                    className="flex flex-col items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 group cursor-grab active:cursor-grabbing"
-                    disabled={isPreviewMode}
+                    title={description}
+                    className="flex flex-col items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 group cursor-grab active:cursor-grabbing disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    disabled={mode === 'preview'}
                   >
                     <Icon className="h-6 w-6 mb-1" style={{ color }} />
-                    <span className="text-xs text-gray-600">{label}</span>
+                    <span className="text-xs text-gray-600 text-center leading-tight">{label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Room Boundary Tool */}
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Room Boundary</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setIsDrawingRoom(!isDrawingRoom)}
+                  disabled={mode === 'preview'}
+                  className={`w-full px-3 py-2 text-sm rounded-lg transition-colors ${
+                    isDrawingRoom
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isDrawingRoom ? 'Drawing... (Click to add vertices)' : 'Draw Room Boundary'}
+                </button>
+                {roomBoundary && (
+                  <button
+                    onClick={() => {
+                      setRoomBoundary(null);
+                      setIsDrawingRoom(false);
+                    }}
+                    className="w-full px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                  >
+                    Clear Boundary
+                  </button>
+                )}
+                {isDrawingRoom && roomBoundary && roomBoundary.vertices.length > 2 && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Click near first point to close polygon
+                  </p>
+                )}
+              </div>
+            </div>
+
             {/* Guest Management */}
-            <div className="flex-1 flex flex-col">
-              <div className="p-4 border-b border-gray-200">
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="p-4 border-b border-gray-200 flex-shrink-0">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-gray-900">Guests</h3>
                   <span className="text-xs text-gray-500">{guests.length} total</span>
@@ -447,22 +938,20 @@ const LayoutEditor: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-wrap gap-1 mb-3">
+                <div className="flex flex-wrap gap-1">
                   {[
                     { id: 'all', label: 'All', count: guests.length },
                     { id: 'vip', label: 'VIP', count: guests.filter(g => g.role === 'VIP').length },
                     { id: 'speakers', label: 'Speakers', count: guests.filter(g => g.role === 'Speaker').length },
-                    { id: 'dietary', label: 'Dietary', count: guests.filter(g => g.dietaryRestrictions.length > 0).length },
-                    { id: 'accessibility', label: 'Access', count: guests.filter(g => g.accessibilityNeeds.length > 0).length },
                     { id: 'unassigned', label: 'Unassigned', count: guests.filter(g => !g.tableId).length }
                   ].map(filter => (
                     <button
                       key={filter.id}
                       onClick={() => setSelectedGuestFilter(filter.id)}
-                      className={`px-2 py-1 text-xs rounded-full ${
+                      className={`px-2 py-1 text-xs rounded-full transition-colors ${
                         selectedGuestFilter === filter.id
                           ? 'bg-indigo-100 text-indigo-700'
-                          : 'bg-gray-100 text-gray-600'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
                       {filter.label} ({filter.count})
@@ -477,13 +966,9 @@ const LayoutEditor: React.FC = () => {
                   {filteredGuests.map(guest => (
                     <div
                       key={guest.id}
-                      className="flex items-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-move"
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('guest-id', guest.id);
-                      }}
+                      className="flex items-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium text-white mr-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-xs font-medium text-white mr-3">
                         {guest.name.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -496,14 +981,6 @@ const LayoutEditor: React.FC = () => {
                           }`}>
                             {guest.role}
                           </span>
-                          {guest.dietaryRestrictions.length > 0 && (
-                            <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
-                              {guest.dietaryRestrictions[0]}
-                            </span>
-                          )}
-                          {guest.accessibilityNeeds.length > 0 && (
-                            <Accessibility className="h-3 w-3 text-blue-600" />
-                          )}
                         </div>
                       </div>
                     </div>
@@ -511,16 +988,25 @@ const LayoutEditor: React.FC = () => {
                 </div>
               </div>
             </div>
-          </>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Controls */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
+              {!sidebarOpen && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
+
               <button
                 onClick={() => setCurrentPage('event-settings')}
                 className="flex items-center text-gray-600 hover:text-gray-900"
@@ -534,7 +1020,7 @@ const LayoutEditor: React.FC = () => {
                 {onlineUsers.map(user => (
                   <div
                     key={user.id}
-                    className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-white"
+                    className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-white ring-2 ring-white"
                     style={{ backgroundColor: user.color }}
                     title={user.name}
                   >
@@ -549,16 +1035,16 @@ const LayoutEditor: React.FC = () => {
               <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => handleZoom('out')}
-                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded"
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded transition-colors"
                 >
                   <ZoomOut className="h-4 w-4" />
                 </button>
-                <span className="text-sm text-gray-600 min-w-[50px] text-center">
+                <span className="text-sm text-gray-600 min-w-[50px] text-center font-medium">
                   {Math.round(stageScale * 100)}%
                 </span>
                 <button
                   onClick={() => handleZoom('in')}
-                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded"
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded transition-colors"
                 >
                   <ZoomIn className="h-4 w-4" />
                 </button>
@@ -566,26 +1052,43 @@ const LayoutEditor: React.FC = () => {
 
               <button
                 onClick={() => setShowGrid(!showGrid)}
-                className={`p-2 rounded ${showGrid ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'} hover:bg-indigo-200`}
+                className={`p-2 rounded transition-colors ${showGrid ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'} hover:bg-indigo-200`}
+                title="Toggle Grid"
               >
                 <Grid3X3 className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => setShowRuler(!showRuler)}
+                className={`p-2 rounded transition-colors ${showRuler ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'} hover:bg-indigo-200`}
+                title="Toggle Ruler"
+              >
+                <Ruler className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => setShowCanvasSettings(!showCanvasSettings)}
+                className={`p-2 rounded transition-colors ${showCanvasSettings ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'} hover:bg-indigo-200`}
+                title="Canvas Settings"
+              >
+                <Maximize className="h-4 w-4" />
               </button>
 
               {/* Mode toggle */}
               <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() => setIsPreviewMode(false)}
-                  className={`px-3 py-1.5 text-sm rounded ${
-                    !isPreviewMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                  onClick={() => setMode('edit')}
+                  className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                    mode === 'edit' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
                   }`}
                 >
                   <Edit className="h-4 w-4 inline mr-1" />
                   Edit
                 </button>
                 <button
-                  onClick={() => setIsPreviewMode(true)}
-                  className={`px-3 py-1.5 text-sm rounded ${
-                    isPreviewMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                  onClick={() => setMode('preview')}
+                  className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                    mode === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
                   }`}
                 >
                   <Eye className="h-4 w-4 inline mr-1" />
@@ -593,11 +1096,77 @@ const LayoutEditor: React.FC = () => {
                 </button>
               </div>
 
-              <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+              <button
+                onClick={saveFloorPlan}
+                disabled={isSaving}
+                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
                 <Save className="h-4 w-4 mr-2" />
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
+          </div>
+
+          {/* Canvas Settings Panel */}
+          {showCanvasSettings && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200"
+            >
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Canvas Settings</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Width (px)</label>
+                  <input
+                    type="number"
+                    value={tempCanvasSize.width}
+                    onChange={(e) => setTempCanvasSize({ ...tempCanvasSize, width: parseInt(e.target.value) || 800 })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="800"
+                    max="5000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Height (px)</label>
+                  <input
+                    type="number"
+                    value={tempCanvasSize.height}
+                    onChange={(e) => setTempCanvasSize({ ...tempCanvasSize, height: parseInt(e.target.value) || 600 })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="600"
+                    max="5000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Scale (px/m)</label>
+                  <input
+                    type="number"
+                    value={pixelsPerMeter}
+                    onChange={(e) => setPixelsPerMeter(parseInt(e.target.value) || 50)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="20"
+                    max="200"
+                  />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  Canvas: {(canvasSize.width / pixelsPerMeter).toFixed(1)}m × {(canvasSize.height / pixelsPerMeter).toFixed(1)}m
+                </p>
+                <button
+                  onClick={applyCanvasSize}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Apply Changes
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Scale indicator */}
+          <div className="mt-2 text-xs text-gray-500">
+            Scale: {pixelsPerMeter} px = 1m | Canvas: {canvasSize.width} × {canvasSize.height} px ({(canvasSize.width / pixelsPerMeter).toFixed(1)}m × {(canvasSize.height / pixelsPerMeter).toFixed(1)}m)
           </div>
         </div>
 
@@ -606,105 +1175,145 @@ const LayoutEditor: React.FC = () => {
           {/* @ts-ignore */}
           <Stage
             ref={stageRef}
-            width={canvasSize.width}
-            height={canvasSize.height}
+            width={containerRef.current?.clientWidth || 800}
+            height={containerRef.current?.clientHeight || 600}
             scaleX={stageScale}
             scaleY={stageScale}
+            x={stagePosition.x}
+            y={stagePosition.y}
             onWheel={handleWheel}
-            draggable={false}
+            draggable={mode === 'edit' && !isDrawingRoom}
             onClick={handleStageClick}
             onMouseUp={handleStageMouseUp}
+            onMouseMove={handleStageMouseMove}
           >
             <Layer>
               {/* Grid */}
               {showGrid && (
                 <>
-                  {Array.from({ length: 100 }, (_, i) => (
-                    <React.Fragment key={`grid-${i}`}>
-                      <Rect
-                        x={i * 20}
-                        y={0}
-                        width={1}
-                        height={2000}
-                        fill="#E5E7EB"
+                  {Array.from({ length: Math.ceil(canvasSize.width / gridSize) }, (_, i) => (
+                    <Line
+                      key={`grid-v-${i}`}
+                      points={[i * gridSize, 0, i * gridSize, canvasSize.height]}
+                      stroke={i % 5 === 0 ? "#D1D5DB" : "#E5E7EB"}
+                      strokeWidth={i % 5 === 0 ? 1.5 : 0.5}
+                    />
+                  ))}
+                  {Array.from({ length: Math.ceil(canvasSize.height / gridSize) }, (_, i) => (
+                    <Line
+                      key={`grid-h-${i}`}
+                      points={[0, i * gridSize, canvasSize.width, i * gridSize]}
+                      stroke={i % 5 === 0 ? "#D1D5DB" : "#E5E7EB"}
+                      strokeWidth={i % 5 === 0 ? 1.5 : 0.5}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Ruler */}
+              {showRuler && (
+                <>
+                  {/* Horizontal ruler */}
+                  <Rect x={0} y={0} width={canvasSize.width} height={35} fill="#F9FAFB" opacity={0.95} />
+                  {Array.from({ length: Math.floor(canvasSize.width / pixelsPerMeter) + 1 }, (_, i) => (
+                    <React.Fragment key={`ruler-h-${i}`}>
+                      <Line
+                        points={[i * pixelsPerMeter, 28, i * pixelsPerMeter, 35]}
+                        stroke="#6B7280"
+                        strokeWidth={1.5}
                       />
-                      <Rect
-                        x={0}
-                        y={i * 20}
-                        width={2000}
-                        height={1}
-                        fill="#E5E7EB"
+                      <Text
+                        x={i * pixelsPerMeter + 3}
+                        y={8}
+                        text={`${i}m`}
+                        fontSize={11}
+                        fill="#374151"
+                        fontStyle="bold"
+                      />
+                    </React.Fragment>
+                  ))}
+
+                  {/* Vertical ruler */}
+                  <Rect x={0} y={0} width={35} height={canvasSize.height} fill="#F9FAFB" opacity={0.95} />
+                  {Array.from({ length: Math.floor(canvasSize.height / pixelsPerMeter) + 1 }, (_, i) => (
+                    <React.Fragment key={`ruler-v-${i}`}>
+                      <Line
+                        points={[28, i * pixelsPerMeter, 35, i * pixelsPerMeter]}
+                        stroke="#6B7280"
+                        strokeWidth={1.5}
+                      />
+                      <Text
+                        x={3}
+                        y={i * pixelsPerMeter + 3}
+                        text={`${i}m`}
+                        fontSize={11}
+                        fill="#374151"
+                        fontStyle="bold"
                       />
                     </React.Fragment>
                   ))}
                 </>
               )}
 
-              {/* Layout Elements */}
-              {layoutElements.map(element => (
-                <Group
-                  key={element.id}
-                  id={element.id}
-                  x={element.x}
-                  y={element.y}
-                  rotation={element.rotation}
-                  draggable={!isPreviewMode}
-                  onClick={() => setSelectedId(element.id)}
-                  onDragEnd={(e: any) => {
-                    const newX = snapToGrid ? Math.round(e.target.x() / 20) * 20 : e.target.x();
-                    const newY = snapToGrid ? Math.round(e.target.y() / 20) * 20 : e.target.y();
-                    updateElement(element.id, { x: newX, y: newY });
-                  }}
-                >
-                  {element.type === 'round-table' ? (
-                    <Circle
-                      radius={element.radius || 40}
-                      fill={element.color}
-                      stroke="#374151"
-                      strokeWidth={2}
-                    />
-                  ) : (
-                    <Rect
-                      width={element.width}
-                      height={element.height}
-                      fill={element.color}
-                      stroke="#374151"
-                      strokeWidth={2}
-                      cornerRadius={4}
-                    />
-                  )}
-                  <Text
-                    text={element.name}
-                    fontSize={12}
-                    fill="white"
-                    fontStyle="bold"
-                    width={element.width}
-                    height={element.height}
-                    align="center"
-                    verticalAlign="middle"
+              {/* Room Boundary */}
+              {roomBoundary && roomBoundary.vertices.length > 0 && (
+                <>
+                  <Line
+                    points={roomBoundary.vertices.flatMap(v => [v.x, v.y])}
+                    stroke="#3B82F6"
+                    strokeWidth={3}
+                    closed={roomBoundary.closed}
+                    fill={roomBoundary.closed ? 'rgba(59, 130, 246, 0.08)' : undefined}
+                    dash={roomBoundary.closed ? undefined : [10, 5]}
                   />
-                  {element.assignedGuests.length > 0 && (
-                    <Text
-                      text={`${element.assignedGuests.length}/${element.capacity}`}
-                      fontSize={10}
-                      fill="white"
-                      x={element.type === 'round-table' ? -20 : 5}
-                      y={element.type === 'round-table' ? (element.radius || 40) + 5 : element.height + 5}
+                  {!roomBoundary.closed && tempVertex && (
+                    <Line
+                      points={[
+                        roomBoundary.vertices[roomBoundary.vertices.length - 1].x,
+                        roomBoundary.vertices[roomBoundary.vertices.length - 1].y,
+                        tempVertex.x,
+                        tempVertex.y
+                      ]}
+                      stroke="#93C5FD"
+                      strokeWidth={2}
+                      dash={[5, 5]}
                     />
                   )}
-                </Group>
-              ))}
+                  {roomBoundary.vertices.map((vertex, i) => (
+                    <Circle
+                      key={`vertex-${i}`}
+                      x={vertex.x}
+                      y={vertex.y}
+                      radius={6}
+                      fill={i === 0 ? '#EF4444' : '#3B82F6'}
+                      stroke="#FFFFFF"
+                      strokeWidth={2}
+                      draggable={mode === 'edit' && !isDrawingRoom}
+                      onDragEnd={(e: any) => {
+                        const newVertices = [...roomBoundary.vertices];
+                        newVertices[i] = { x: e.target.x(), y: e.target.y() };
+                        setRoomBoundary({ ...roomBoundary, vertices: newVertices });
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Layout Elements */}
+              {layoutElements.map(element => renderShape(element))}
 
               {/* Transformer for selected element */}
-              {selectedId && (
+              {selectedId && mode === 'edit' && (
                 <Transformer
                   ref={transformerRef}
                   boundBoxFunc={(oldBox: any, newBox: any) => {
-                    if (newBox.width < 5 || newBox.height < 5) {
+                    if (newBox.width < 30 || newBox.height < 30) {
                       return oldBox;
                     }
                     return newBox;
                   }}
+                  rotateEnabled={true}
+                  enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
                 />
               )}
             </Layer>
@@ -713,8 +1322,13 @@ const LayoutEditor: React.FC = () => {
       </div>
 
       {/* Properties Panel */}
-      {selectedElement && sidebarOpen && (
-        <div className="w-80 bg-white border-l border-gray-200 p-4">
+      {selectedElement && (
+        <motion.div
+          initial={{ x: 320 }}
+          animate={{ x: 0 }}
+          exit={{ x: 320 }}
+          className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto"
+        >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Element Properties</h3>
 
           <div className="space-y-4">
@@ -725,6 +1339,7 @@ const LayoutEditor: React.FC = () => {
                 value={selectedElement.name}
                 onChange={(e) => updateElement(selectedElement.id, { name: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={mode === 'preview'}
               />
             </div>
 
@@ -735,62 +1350,92 @@ const LayoutEditor: React.FC = () => {
                 value={selectedElement.capacity}
                 onChange={(e) => updateElement(selectedElement.id, { capacity: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={mode === 'preview'}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Layout Statistics</label>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Capacity:</span>
-                  <span className="font-medium">{layoutStats.totalCapacity}</span>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500">X (px)</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.x)}
+                    onChange={(e) => updateElement(selectedElement.id, { x: parseInt(e.target.value) || 0 })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={mode === 'preview'}
+                  />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Assigned Guests:</span>
-                  <span className="font-medium">{layoutStats.assignedGuests}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Dietary Requirements:</span>
-                  <span className="font-medium">{layoutStats.dietaryRequirements}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Accessibility Needs:</span>
-                  <span className="font-medium">{layoutStats.accessibilityNeeds}</span>
+                <div>
+                  <label className="text-xs text-gray-500">Y (px)</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.y)}
+                    onChange={(e) => updateElement(selectedElement.id, { y: parseInt(e.target.value) || 0 })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={mode === 'preview'}
+                  />
                 </div>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dimensions</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500">Width (px)</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.width)}
+                    onChange={(e) => updateElement(selectedElement.id, { width: parseInt(e.target.value) || 20 })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={mode === 'preview'}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Height (px)</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.height)}
+                    onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 20 })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={mode === 'preview'}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Real size: {(selectedElement.width / pixelsPerMeter).toFixed(2)}m × {(selectedElement.height / pixelsPerMeter).toFixed(2)}m
+              </p>
             </div>
 
             <div className="pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Export Reports</h4>
-              <div className="space-y-2">
-                <button
-                  onClick={exportSeatingChart}
-                  className="w-full flex items-center px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                >
-                  <Map className="h-4 w-4 mr-2" />
-                  Seating Chart
-                </button>
-                <button
-                  onClick={exportFloorPlan}
-                  className="w-full flex items-center px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Floor Plan PDF
-                </button>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Element Type</span>
+                <div className="flex items-center space-x-2">
+                  {React.createElement(selectedElement.config.icon, {
+                    className: 'h-5 w-5',
+                    style: { color: selectedElement.config.color }
+                  })}
+                  <span className="text-sm text-gray-600">{selectedElement.config.label}</span>
+                </div>
               </div>
+              <p className="text-xs text-gray-500">{selectedElement.config.description}</p>
             </div>
 
-            <div className="flex space-x-2 pt-4">
-              <button
-                onClick={() => deleteElement(selectedElement.id)}
-                className="flex-1 px-3 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
-              >
-                <Trash2 className="h-4 w-4 inline mr-1" />
-                Delete
-              </button>
-            </div>
+            {mode === 'edit' && (
+              <div className="flex space-x-2 pt-4">
+                <button
+                  onClick={() => deleteElement(selectedElement.id)}
+                  className="flex-1 px-3 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4 inline mr-1" />
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );
