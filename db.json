@@ -1205,5 +1205,189 @@
         }
       ]
     }
+  ],
+  "floorplans": [
+    {
+      "id": "aa10",
+      "eventId": "event-1",
+      "canvasSize": {
+        "width": 2000,
+        "height": 1500
+      },
+      "pixelsPerMeter": 50,
+      "elements": [
+        {
+          "id": "table-1759731091268",
+          "type": "table",
+          "x": 225.01028522971055,
+          "y": 134.55856332664328,
+          "width": 180,
+          "height": 90,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "Rectangular Table 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "table",
+            "shape": "rounded-rect",
+            "icon": {},
+            "label": "Rectangular Table",
+            "color": "#8B5CF6",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 180,
+            "defaultHeight": 90,
+            "description": "6-8 person dining table"
+          }
+        },
+        {
+          "id": "stage-1759731094641",
+          "type": "stage",
+          "x": 486.0121623129321,
+          "y": 315.560287586233,
+          "width": 400,
+          "height": 200,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "Stage 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "stage",
+            "shape": "stage",
+            "icon": {},
+            "label": "Stage",
+            "color": "#EF4444",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 400,
+            "defaultHeight": 200,
+            "description": "Presentation stage"
+          }
+        },
+        {
+          "id": "round-table-1759731097327",
+          "type": "round-table",
+          "x": 868.0149096148119,
+          "y": 141.55863001071583,
+          "width": 120,
+          "height": 120,
+          "rotation": 0,
+          "capacity": 8,
+          "name": "Round Table 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "round-table",
+            "shape": "circle",
+            "icon": "Circle",
+            "label": "Round Table",
+            "color": "#3B82F6",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 120,
+            "defaultHeight": 120,
+            "defaultRadius": 60,
+            "description": "8-10 person round table"
+          },
+          "radius": 60
+        },
+        {
+          "id": "vip-1759731099583",
+          "type": "vip",
+          "x": 180,
+          "y": 380,
+          "width": 240,
+          "height": 160,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "VIP Lounge 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "vip",
+            "shape": "rounded-rect",
+            "icon": {},
+            "label": "VIP Lounge",
+            "color": "#F59E0B",
+            "textColor": "#000000",
+            "defaultWidth": 240,
+            "defaultHeight": 160,
+            "description": "VIP seating area"
+          }
+        },
+        {
+          "id": "catering-1759731121337",
+          "type": "catering",
+          "x": 505.01229895883716,
+          "y": 202.55921111477645,
+          "width": 200,
+          "height": 100,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "Buffet Station 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "catering",
+            "shape": "rounded-rect",
+            "icon": {},
+            "label": "Buffet Station",
+            "color": "#F97316",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 200,
+            "defaultHeight": 100,
+            "description": "Food service area"
+          }
+        }
+      ],
+      "roomBoundary": {
+        "vertices": [
+          {
+            "x": 80,
+            "y": 320
+          },
+          {
+            "x": 300,
+            "y": 40
+          }
+        ],
+        "closed": false
+      },
+      "updatedAt": "2025-10-06T06:14:11.222Z",
+      "createdAt": "2025-10-06T06:14:11.223Z"
+    },
+    {
+      "id": "9211",
+      "eventId": "event-2",
+      "canvasSize": {
+        "width": 2000,
+        "height": 1500
+      },
+      "pixelsPerMeter": 50,
+      "elements": [
+        {
+          "id": "cocktail-table-1759733545506",
+          "type": "cocktail-table",
+          "x": 272.01062324852825,
+          "y": 176.55896343107847,
+          "width": 60,
+          "height": 60,
+          "rotation": 0,
+          "capacity": 4,
+          "name": "Cocktail Table 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "cocktail-table",
+            "shape": "circle",
+            "icon": "Circle",
+            "label": "Cocktail Table",
+            "color": "#06B6D4",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 60,
+            "defaultHeight": 60,
+            "defaultRadius": 30,
+            "description": "Standing cocktail table"
+          },
+          "radius": 30
+        }
+      ],
+      "roomBoundary": null,
+      "updatedAt": "2025-10-06T06:52:27.007Z",
+      "createdAt": "2025-10-06T06:52:27.008Z"
+    }
   ]
 }
