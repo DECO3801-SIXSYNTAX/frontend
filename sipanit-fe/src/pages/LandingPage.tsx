@@ -1,6 +1,4 @@
-import { Hero } from "../../components/Hero"
-import { FeaturesGrid } from "../../components/FeaturesGrid"
-import { CTASection } from "../../components/CTASection"
+import { Hero, FeaturesGrid, CTASection } from "../components"
 
 export function LandingPage() {
   return (

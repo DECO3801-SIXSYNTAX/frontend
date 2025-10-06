@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { Button } from "../src/components/ui/button"
+import { Button } from "../ui/button"
 
 export function CTASection() {
   return (

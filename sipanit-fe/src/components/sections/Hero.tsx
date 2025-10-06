@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom"
-import { Button } from "../src/components/ui/button"
+import { Button } from "../ui/button"
+import { InteractiveSeatingDemo } from "../demo/InteractiveSeatingDemo"
 
 export function Hero() {
   return (
-    <section id="home" className="pt-24 pb-16 lg:pt-32 lg:pb-24">
+    <section id="home" className="pt-24 pb-16 lg:pt-32 lg:pb-24 relative">
       <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}
@@ -36,15 +37,9 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Right Illustration */}
+          {/* Right Interactive Demo */}
           <div className="flex justify-center lg:justify-end">
-            <div className="bg-white rounded-2xl shadow-2xl p-4 max-w-md w-full">
-              <img
-                src="/event-layout.svg?v=2"
-                alt="Event seating layout visualization showing tables and chairs arrangement"
-                className="w-full h-auto rounded-lg"
-              />
-            </div>
+            <InteractiveSeatingDemo />
           </div>
         </div>
       </div>
