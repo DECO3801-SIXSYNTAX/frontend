@@ -24,7 +24,7 @@ export function Hero() {
                 size="lg"
                 className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
               >
-                <Link to="/signup">Get Started</Link>
+                <Link to="/auth/sign-up">Get Started</Link>
               </Button>
               <Button
                 asChild
@@ -32,7 +32,7 @@ export function Hero() {
                 size="lg"
                 className="text-[#2563EB] hover:bg-[#2563EB]/10 px-8 py-3 text-lg rounded-xl border border-[#2563EB]/20 hover:border-[#2563EB]/40 transition-all duration-200"
               >
-                <Link to="/login">Login</Link>
+                <Link to="/auth/sign-in">Login</Link>
               </Button>
             </div>
           </div>

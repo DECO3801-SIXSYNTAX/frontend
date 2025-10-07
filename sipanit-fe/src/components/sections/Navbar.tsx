@@ -64,7 +64,7 @@ export function Navbar() {
           {/* Desktop Login Button */}
           <div className="hidden md:block">
             <Button asChild className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
-              <Link to="/login">Login</Link>
+              <Link to="/auth/sign-in">Login</Link>
             </Button>
           </div>
 
@@ -100,7 +100,7 @@ export function Navbar() {
                 Contact
               </button>
               <Button asChild className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white w-fit">
-                <Link to="/login">Login</Link>
+                <Link to="/auth/sign-in">Login</Link>
               </Button>
             </div>
           </div>
