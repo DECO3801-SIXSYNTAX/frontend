@@ -1,24 +1,26 @@
-import * as React from "react"
-import { cn } from "../../lib/utils"
+import React from "react";
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
+type Props = React.InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  icon?: React.ReactNode;
+};
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
-    return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Input.displayName = "Input"
+export function Input({ label, icon, className, ...props }: Props) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block font-medium text-gray-700">{label}</span>
+      <div
+        className={`flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 ${className ?? ""}`}
+      >
+        <input
+          {...props}
+          className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
+        />
+        {icon && <div className="ml-2 text-gray-400">{icon}</div>}
+      </div>
+    </label>
+  );
+}
 
-export { Input }
+// Keep default export for backward compatibility
+export default Input;

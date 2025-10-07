@@ -9,6 +9,9 @@ import { Welcome } from "./pages/kiosk/Welcome"
 import { QrScan } from "./pages/kiosk/QrScan"
 import { Verify } from "./pages/kiosk/Verify"
 import { SeatView } from "./pages/kiosk/SeatView"
+import SignIn from "./pages/auth/SignIn"
+import SignUp from "./pages/auth/SignUp"
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage"
 
 function App() {
   return (
@@ -16,6 +19,9 @@ function App() {
       <Route path="/" element={<MarketingLayout />}>
         <Route index element={<LandingPage />} />
       </Route>
+      <Route path="/auth/sign-in" element={<SignIn />} />
+      <Route path="/auth/sign-up" element={<SignUp />} />
+      <Route path="/auth/reset" element={<ResetPasswordPage />} />
       <Route path="/vendor" element={<DashboardLayout />}>
         <Route index element={<VendorDashboard />} />
         <Route path="events" element={<EventList />} />
