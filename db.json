@@ -1,0 +1,1393 @@
+{
+  "users": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "email": "test@test.com",
+      "password": "new123456",
+      "name": "Test User",
+      "role": "planner",
+      "company": "Event Masters",
+      "phone": "+1234567890",
+      "experience": "5+ years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "email": "dika@demo.com",
+      "password": "newpassword123",
+      "name": "Dika",
+      "role": "vendor"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "email": "googleuser@gmail.com",
+      "password": "oauth-mock",
+      "name": "Google User",
+      "role": "planner",
+      "company": "Google Events",
+      "phone": "+1987654321",
+      "experience": "3+ years",
+      "specialty": "Tech Conferences"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440004",
+      "name": "Andika Pramudya Wardana",
+      "email": "andikapramudya30@gmail.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "UQ",
+      "phone": "123456782345",
+      "experience": "5+ years",
+      "specialty": "Product Launches"
+    },
+    {
+      "id": "8d317fab-b3b7-4129-a8de-87af3d5ac749",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381155745@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "caeef746-9e0e-4ea3-a236-5cc050b6bc85",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381155805@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "caab3f4b-27a4-41da-88cd-531068e1cdc3",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381619269@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "e8be278d-9a19-4ef7-9df7-4936fcd9918c",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381619296@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "7cf758f6-dba2-45e0-a71b-01dcc2de48b1",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381760627@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "9550e02e-0e3a-444d-9cdb-bc7100036bf0",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381760666@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "9abb59fc-e4e4-4101-8056-22f03807ba71",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757381893635@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "51f90b3c-78d7-4c5d-8c06-53e2ad044776",
+      "name": "Integration Test Planner",
+      "email": "planner-1757381893661@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "3252114c-902d-454e-8770-56157b92cc2e",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757382351928@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "53b365e3-bd47-4198-bdaf-28732fc59681",
+      "name": "Integration Test Planner",
+      "email": "planner-1757382351953@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "9c3376d5-b44f-4536-bc8f-7117695f4867",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757382803597@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "76e93fc3-16cb-46da-9bf6-c31432be1b25",
+      "name": "Integration Test Planner",
+      "email": "planner-1757382803632@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "eee6a730-e48d-429c-a9ba-68f62c6d04d0",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757383507242@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "810b9e34-433b-45b5-a50a-2c14f71f7d2a",
+      "name": "Integration Test Planner",
+      "email": "planner-1757383507270@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "549a61d6-8f5a-4cde-8ef7-ea3045e3ecf6",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757383597973@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "ed1d1d49-b59e-40f5-a5be-5c3671cd412a",
+      "name": "Integration Test Planner",
+      "email": "planner-1757383598002@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "c3dca9ea-f025-414c-944a-4059fa05850c",
+      "name": "Andi",
+      "email": "a@gmail.com",
+      "password": "098765",
+      "role": "planner",
+      "company": "abc",
+      "phone": "123",
+      "experience": "10+ years",
+      "specialty": "Product Launches"
+    },
+    {
+      "id": "ed67e88a-c589-4bf3-b21e-dae99932573b",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757393606301@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "da100134-0e36-4eb1-bbb3-4cbd22fc5678",
+      "name": "Integration Test Planner",
+      "email": "planner-1757393606358@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "19eda059-343c-4813-b77e-627b3a5bbbdb",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757393947801@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "d436ba69-3ba1-4db2-8e3f-8150661acfe0",
+      "name": "Integration Test Planner",
+      "email": "planner-1757393947842@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "18f55650-7b30-4ef6-b128-beabc526a962",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757394285233@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "f9d00610-3a0b-495d-a5cb-1b92285bbe22",
+      "name": "Integration Test Planner",
+      "email": "planner-1757394285266@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "647a6354-ee12-499c-a017-5bf79487d74d",
+      "name": "Allan",
+      "email": "allan@gmail.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "abc",
+      "phone": "123",
+      "experience": "1-2 years",
+      "specialty": "Conferences"
+    },
+    {
+      "id": "5b1a41d4-f39d-4cd5-ad2e-933ae6e32d55",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757911896117@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "81121ebc-3dfd-46c4-96f6-67b923760b32",
+      "name": "Integration Test Planner",
+      "email": "planner-1757911896148@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "935fc2e7-18c7-41fa-bec3-a26aa5141367",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757912150336@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "84aab639-fb97-4e9e-a5ab-caebd9a277f5",
+      "name": "Integration Test Planner",
+      "email": "planner-1757912150358@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "d3ceeee4-e08e-4088-8307-7cfe751d87ed",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757912236683@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "db554e7d-7cb4-45b4-84b6-dd25bc0edab5",
+      "name": "Integration Test Planner",
+      "email": "planner-1757912236711@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "642a15b6-24b6-4f68-a991-4e6e3802b1b8",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757915656724@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "363c9f2a-b982-452e-9a25-486ba070ab46",
+      "name": "Integration Test Planner",
+      "email": "planner-1757915656754@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "8d301511-02f3-432d-bd46-2c45bac5d539",
+      "name": "Integration Test Vendor",
+      "email": "vendor-1757915690692@test.com",
+      "password": "123456",
+      "role": "vendor"
+    },
+    {
+      "id": "8bfce5eb-a7ea-472a-891a-ee43d9ec033b",
+      "name": "Integration Test Planner",
+      "email": "planner-1757915690717@test.com",
+      "password": "123456",
+      "role": "planner",
+      "company": "Test Company",
+      "phone": "+1234567890",
+      "experience": "3-5 years",
+      "specialty": "Corporate Events"
+    },
+    {
+      "id": "d7ff",
+      "name": "Test Integration User",
+      "email": "integration-test@example.com",
+      "password": "testpass123",
+      "role": "vendor"
+    },
+    {
+      "id": "7752",
+      "name": "Planner Test User",
+      "email": "planner-test@example.com",
+      "password": "plannerpass123",
+      "role": "planner",
+      "company": "Updated Events Company",
+      "phone": "+1-555-123-4567",
+      "experience": "5+ years",
+      "specialty": "Wedding Planning"
+    },
+    {
+      "id": "646179d4-a4a6-4250-8233-24d56ad7a464",
+      "name": "Andika",
+      "email": "andikapramudyawardana30@gmail.com",
+      "password": "andika123",
+      "role": "vendor",
+      "company": "",
+      "phone": "",
+      "experience": "",
+      "specialty": ""
+    },
+    {
+      "id": "ea0f",
+      "name": "Frontend Test User",
+      "email": "frontend-test@example.com",
+      "password": "frontendpass123",
+      "role": "planner",
+      "company": "Frontend Test Company",
+      "phone": "+1-555-999-0000",
+      "experience": "2-3 years",
+      "specialty": "Frontend Events"
+    }
+  ],
+  "events": [
+    {
+      "id": "event-1",
+      "name": "Annual Tech Conference 2024",
+      "description": "A comprehensive technology conference featuring industry leaders and innovative solutions.",
+      "type": "conference",
+      "startDate": "2024-10-15T09:00:00Z",
+      "endDate": "2024-10-15T17:00:00Z",
+      "venue": "Brisbane Convention Centre",
+      "address": "Cnr Merivale & Glenelg Streets, South Brisbane QLD 4101",
+      "capacity": 500,
+      "expectedAttendees": 350,
+      "actualAttendees": 0,
+      "budget": 50000,
+      "dietaryNeeds": 25,
+      "accessibilityNeeds": 12,
+      "status": "planning",
+      "createdBy": "550e8400-e29b-41d4-a716-446655440001",
+      "createdAt": "2024-09-16T10:00:00Z",
+      "updatedAt": "2024-09-16T10:00:00Z",
+      "tags": [
+        "technology",
+        "networking",
+        "innovation"
+      ],
+      "priority": "high",
+      "notes": "Require AV equipment for all sessions"
+    },
+    {
+      "id": "event-2",
+      "name": "Smith Wedding Celebration",
+      "description": "Elegant wedding celebration for Mr. and Mrs. Smith with garden ceremony and reception.",
+      "type": "wedding",
+      "startDate": "2024-11-22T15:00:00Z",
+      "endDate": "2024-11-22T23:00:00Z",
+      "venue": "Royal Botanic Gardens",
+      "address": "Mt Coot-tha Rd, Toowong QLD 4066",
+      "capacity": 150,
+      "expectedAttendees": 120,
+      "actualAttendees": 0,
+      "budget": 35000,
+      "dietaryNeeds": 8,
+      "accessibilityNeeds": 3,
+      "status": "confirmed",
+      "createdBy": "550e8400-e29b-41d4-a716-446655440001",
+      "createdAt": "2024-09-10T14:30:00Z",
+      "updatedAt": "2024-09-15T16:45:00Z",
+      "tags": [
+        "wedding",
+        "outdoor",
+        "elegant"
+      ],
+      "priority": "medium",
+      "notes": "Weather backup plan required"
+    },
+    {
+      "id": "event-3",
+      "name": "Corporate Team Building",
+      "description": "Interactive team building activities and workshops for company employees.",
+      "type": "conference",
+      "startDate": "2024-10-05",
+      "endDate": "2024-10-05",
+      "venue": "Adventure Park",
+      "address": "1234 Adventure Rd, Brisbane QLD 4000",
+      "capacity": 85,
+      "expectedAttendees": 65,
+      "actualAttendees": 0,
+      "budget": 15000,
+      "dietaryNeeds": 5,
+      "accessibilityNeeds": 2,
+      "status": "active",
+      "createdBy": "550e8400-e29b-41d4-a716-446655440001",
+      "createdAt": "2024-09-12T11:15:00Z",
+      "updatedAt": "2025-09-22T07:58:00.769Z",
+      "tags": [
+        "corporate",
+        "team-building",
+        "outdoor"
+      ],
+      "priority": "high",
+      "notes": "Safety equipment included"
+    },
+    {
+      "id": "event-4",
+      "name": "Product Launch Gala",
+      "description": "High-profile product launch event with media coverage and VIP guests.",
+      "type": "product-launch",
+      "startDate": "2024-12-10T18:00:00Z",
+      "endDate": "2024-12-10T22:00:00Z",
+      "venue": "Grand Ballroom Hotel",
+      "address": "456 Luxury Ave, Brisbane QLD 4000",
+      "capacity": 200,
+      "expectedAttendees": 180,
+      "actualAttendees": 0,
+      "budget": 75000,
+      "dietaryNeeds": 15,
+      "accessibilityNeeds": 8,
+      "status": "draft",
+      "createdBy": "550e8400-e29b-41d4-a716-446655440004",
+      "createdAt": "2024-09-16T14:00:00Z",
+      "updatedAt": "2024-09-16T14:00:00Z",
+      "tags": [
+        "product-launch",
+        "media",
+        "vip"
+      ],
+      "priority": "high",
+      "notes": "Media setup required, VIP reception area"
+    },
+    {
+      "id": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "name": "Ardhika's Birthday",
+      "description": "21st Birthday",
+      "type": "birthday",
+      "startDate": "2025-09-16",
+      "endDate": "2025-09-16",
+      "venue": "UQ",
+      "address": "UQ",
+      "capacity": 100,
+      "expectedAttendees": 50,
+      "budget": 2900,
+      "dietaryNeeds": 5,
+      "accessibilityNeeds": 2,
+      "tags": [
+        "Birthday"
+      ],
+      "priority": "medium",
+      "notes": "",
+      "actualAttendees": 0,
+      "status": "draft",
+      "createdBy": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "createdAt": "2025-09-16T04:54:02.301Z",
+      "updatedAt": "2025-09-16T04:54:02.301Z"
+    }
+  ],
+  "guests": [
+    {
+      "id": "guest-1",
+      "eventId": "event-1",
+      "name": "Dr. Sarah Johnson",
+      "email": "sarah.johnson@techcorp.com",
+      "phone": "+61 400 123 456",
+      "dietaryRestrictions": "vegetarian",
+      "accessibilityNeeds": "wheelchair access",
+      "rsvpStatus": "confirmed",
+      "importedAt": "2024-09-16T10:30:00Z"
+    },
+    {
+      "id": "guest-2",
+      "eventId": "event-1",
+      "name": "Michael Chen",
+      "email": "m.chen@innovations.com",
+      "phone": "+61 400 789 012",
+      "dietaryRestrictions": "none",
+      "accessibilityNeeds": "none",
+      "rsvpStatus": "pending",
+      "importedAt": "2024-09-16T10:30:00Z"
+    },
+    {
+      "id": "guest-3",
+      "eventId": "event-2",
+      "name": "Emily Smith",
+      "email": "emily@email.com",
+      "phone": "+61 400 345 678",
+      "dietaryRestrictions": "gluten-free",
+      "accessibilityNeeds": "none",
+      "rsvpStatus": "confirmed",
+      "importedAt": "2024-09-10T15:00:00Z"
+    },
+    {
+      "id": "guest-4",
+      "eventId": "event-3",
+      "name": "John Wilson",
+      "email": "john.wilson@company.com",
+      "phone": "+61 400 567 890",
+      "dietaryRestrictions": "none",
+      "accessibilityNeeds": "hearing aid compatible",
+      "rsvpStatus": "confirmed",
+      "importedAt": "2024-09-12T12:00:00Z"
+    },
+    {
+      "id": "67191e02-fed4-4326-a058-d79abaada3ee",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone": "812345262",
+      "dietaryRestrictions": "vegetarian",
+      "accessibilityNeeds": "wheelchair access",
+      "rsvpStatus": "pending",
+      "importedAt": "2025-09-22T05:26:36.304Z"
+    },
+    {
+      "id": "e5a9ed1a-6443-47a3-b6b0-a0f9707fb8bc",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "name": "Jane Smith",
+      "email": "jane.smith@example.com",
+      "phone": "182702730`9237",
+      "dietaryRestrictions": "none",
+      "accessibilityNeeds": "none",
+      "rsvpStatus": "pending",
+      "importedAt": "2025-09-22T05:26:36.304Z"
+    },
+    {
+      "id": "55b64233-72d7-4e22-bf5a-35a4c6063832",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "name": "Budi",
+      "email": "budi@gmail.com",
+      "phone": "812937281",
+      "dietaryRestrictions": "Vegan",
+      "accessibilityNeeds": "wheelchair access",
+      "rsvpStatus": "pending",
+      "importedAt": "2025-09-22T05:26:36.304Z"
+    },
+    {
+      "id": "976569ed-3375-4824-a079-0537183aa007",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "name": "Ahmad",
+      "email": "ahmad@gmail.com",
+      "phone": "81212124942",
+      "dietaryRestrictions": "No pork",
+      "accessibilityNeeds": "none",
+      "rsvpStatus": "pending",
+      "importedAt": "2025-09-22T05:26:36.304Z"
+    }
+  ],
+  "teamMembers": [
+    {
+      "id": "team-1",
+      "userId": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Test User",
+      "email": "test@test.com",
+      "role": "Event Manager",
+      "joinedAt": "2024-01-15T08:00:00Z",
+      "invitedBy": "self",
+      "status": "online"
+    },
+    {
+      "id": "team-2",
+      "userId": "550e8400-e29b-41d4-a716-446655440003",
+      "name": "Google User",
+      "email": "googleuser@gmail.com",
+      "role": "Event Coordinator",
+      "joinedAt": "2024-02-20T09:30:00Z",
+      "invitedBy": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "away"
+    },
+    {
+      "id": "team-3",
+      "userId": "550e8400-e29b-41d4-a716-446655440004",
+      "name": "Andika Pramudya Wardana",
+      "email": "andikapramudya30@gmail.com",
+      "role": "Logistics Specialist",
+      "joinedAt": "2024-03-10T10:15:00Z",
+      "invitedBy": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "online"
+    }
+  ],
+  "activities": [
+    {
+      "id": "activity-1",
+      "userId": "550e8400-e29b-41d4-a716-446655440001",
+      "userName": "Test User",
+      "action": "Created event",
+      "details": "Annual Tech Conference 2024",
+      "eventId": "event-1",
+      "timestamp": "2024-09-16T10:00:00Z",
+      "type": "event"
+    },
+    {
+      "id": "activity-2",
+      "userId": "550e8400-e29b-41d4-a716-446655440003",
+      "userName": "Google User",
+      "action": "Updated event status",
+      "details": "Smith Wedding Celebration - Status changed to Confirmed",
+      "eventId": "event-2",
+      "timestamp": "2024-09-15T16:45:00Z",
+      "type": "event"
+    },
+    {
+      "id": "activity-3",
+      "userId": "550e8400-e29b-41d4-a716-446655440001",
+      "userName": "Test User",
+      "action": "Imported guests",
+      "details": "Added 25 guests to Annual Tech Conference 2024",
+      "eventId": "event-1",
+      "timestamp": "2024-09-16T10:30:00Z",
+      "type": "guest"
+    },
+    {
+      "id": "activity-4",
+      "userId": "550e8400-e29b-41d4-a716-446655440004",
+      "userName": "Andika Pramudya Wardana",
+      "action": "Joined team",
+      "details": "Welcomed as Logistics Specialist",
+      "eventId": null,
+      "timestamp": "2024-03-10T10:15:00Z",
+      "type": "team"
+    },
+    {
+      "id": "activity-5",
+      "userId": "550e8400-e29b-41d4-a716-446655440004",
+      "userName": "Andika Pramudya Wardana",
+      "action": "Created event",
+      "details": "Product Launch Gala",
+      "eventId": "event-4",
+      "timestamp": "2024-09-16T14:00:00Z",
+      "type": "event"
+    },
+    {
+      "id": "753964a0-d241-4a79-bc67-3f9b7705a18e",
+      "userId": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "userName": "Current User",
+      "action": "Created event",
+      "details": "Ardhika's Birthday",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "type": "event",
+      "timestamp": "2025-09-16T04:54:02.335Z"
+    },
+    {
+      "id": "417fc80e-16bd-409a-abe5-4d206fe0d22f",
+      "userId": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "userName": "Current User",
+      "action": "Imported guests",
+      "details": "Added 4 guests",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "type": "guest",
+      "timestamp": "2025-09-22T05:26:36.362Z"
+    },
+    {
+      "id": "99621846-18b4-4582-9136-e344115aa44e",
+      "userId": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "userName": "Current User",
+      "action": "Updated event",
+      "details": "Corporate Team Building - Updated",
+      "eventId": "event-3",
+      "type": "event",
+      "timestamp": "2025-09-22T07:58:00.848Z"
+    }
+  ],
+  "invitations": [
+    {
+      "id": "invite-1",
+      "code": "SIPANIT-ABC123",
+      "createdBy": "550e8400-e29b-41d4-a716-446655440001",
+      "expiresAt": "2024-10-16T23:59:59Z",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null
+    },
+    {
+      "id": "invite-2",
+      "code": "SIPANIT-XYZ789",
+      "createdBy": "550e8400-e29b-41d4-a716-446655440001",
+      "expiresAt": "2024-03-15T23:59:59Z",
+      "used": true,
+      "usedBy": "550e8400-e29b-41d4-a716-446655440004",
+      "usedAt": "2024-03-10T10:15:00Z"
+    },
+    {
+      "id": "bd15712c-c91a-476b-b6ca-10a999a81818",
+      "code": "SIPANIT-V5W7UT",
+      "createdBy": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "expiresAt": "2025-09-23T06:19:30.902Z",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null
+    },
+    {
+      "id": "97f6e830-f8ea-4ad9-a7cc-6742e4b4b112",
+      "code": "SIPANIT-T00MJP",
+      "createdBy": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "expiresAt": "2025-09-23T06:32:19.064Z",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null
+    },
+    {
+      "id": "43e90d48-f196-4fa0-8b6e-3016b4e2abbe",
+      "code": "SIPANIT-PS366R",
+      "createdBy": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "expiresAt": "2025-09-29T05:23:08.684Z",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null
+    }
+  ],
+  "appSettings": {
+    "item": {
+      "item": {
+        "item": {
+          "item": {
+            "item": {
+              "item": {
+                "item": {
+                  "item": {
+                    "item": {
+                      "item": {
+                        "item": {
+                          "item": {
+                            "item": {
+                              "item": {
+                                "item": {
+                                  "item": {
+                                    "item": {
+                                      "item": {
+                                        "item": {
+                                          "appearance": {
+                                            "theme": "light",
+                                            "primaryColor": "indigo",
+                                            "fontSize": "medium",
+                                            "reducedMotion": false,
+                                            "highContrast": false,
+                                            "compactMode": false
+                                          },
+                                          "system": {
+                                            "soundEnabled": true,
+                                            "notificationsEnabled": true,
+                                            "language": "en",
+                                            "autoSave": true
+                                          }
+                                        },
+                                        "appearance": {
+                                          "theme": "dark",
+                                          "primaryColor": "indigo",
+                                          "fontSize": "medium",
+                                          "reducedMotion": false,
+                                          "highContrast": false,
+                                          "compactMode": false
+                                        }
+                                      },
+                                      "appearance": {
+                                        "theme": "light",
+                                        "primaryColor": "indigo",
+                                        "fontSize": "medium",
+                                        "reducedMotion": false,
+                                        "highContrast": false,
+                                        "compactMode": false
+                                      }
+                                    },
+                                    "appearance": {
+                                      "theme": "dark",
+                                      "primaryColor": "indigo",
+                                      "fontSize": "medium",
+                                      "reducedMotion": false,
+                                      "highContrast": false,
+                                      "compactMode": false
+                                    }
+                                  },
+                                  "system": {
+                                    "soundEnabled": true,
+                                    "notificationsEnabled": true,
+                                    "language": "id",
+                                    "autoSave": true
+                                  }
+                                },
+                                "appearance": {
+                                  "theme": "light",
+                                  "primaryColor": "indigo",
+                                  "fontSize": "medium",
+                                  "reducedMotion": false,
+                                  "highContrast": false,
+                                  "compactMode": false
+                                }
+                              },
+                              "system": {
+                                "soundEnabled": true,
+                                "notificationsEnabled": true,
+                                "language": "en",
+                                "autoSave": true
+                              }
+                            },
+                            "appearance": {
+                              "theme": "dark",
+                              "primaryColor": "indigo",
+                              "fontSize": "medium",
+                              "reducedMotion": false,
+                              "highContrast": false,
+                              "compactMode": false
+                            }
+                          },
+                          "appearance": {
+                            "theme": "dark",
+                            "primaryColor": "blue",
+                            "fontSize": "medium",
+                            "reducedMotion": false,
+                            "highContrast": false,
+                            "compactMode": false
+                          }
+                        },
+                        "appearance": {
+                          "theme": "dark",
+                          "primaryColor": "green",
+                          "fontSize": "medium",
+                          "reducedMotion": false,
+                          "highContrast": false,
+                          "compactMode": false
+                        }
+                      },
+                      "appearance": {
+                        "theme": "dark",
+                        "primaryColor": "purple",
+                        "fontSize": "medium",
+                        "reducedMotion": false,
+                        "highContrast": false,
+                        "compactMode": false
+                      }
+                    },
+                    "appearance": {
+                      "theme": "dark",
+                      "primaryColor": "indigo",
+                      "fontSize": "medium",
+                      "reducedMotion": false,
+                      "highContrast": false,
+                      "compactMode": false
+                    }
+                  },
+                  "appearance": {
+                    "theme": "dark",
+                    "primaryColor": "purple",
+                    "fontSize": "medium",
+                    "reducedMotion": false,
+                    "highContrast": false,
+                    "compactMode": false
+                  }
+                },
+                "appearance": {
+                  "theme": "light",
+                  "primaryColor": "purple",
+                  "fontSize": "medium",
+                  "reducedMotion": false,
+                  "highContrast": false,
+                  "compactMode": false
+                }
+              },
+              "appearance": {
+                "theme": "dark",
+                "primaryColor": "purple",
+                "fontSize": "medium",
+                "reducedMotion": false,
+                "highContrast": false,
+                "compactMode": false
+              }
+            },
+            "appearance": {
+              "theme": "light",
+              "primaryColor": "purple",
+              "fontSize": "medium",
+              "reducedMotion": false,
+              "highContrast": false,
+              "compactMode": false
+            }
+          },
+          "appearance": {
+            "theme": "light",
+            "primaryColor": "purple",
+            "fontSize": "small",
+            "reducedMotion": false,
+            "highContrast": false,
+            "compactMode": false
+          }
+        },
+        "appearance": {
+          "theme": "light",
+          "primaryColor": "purple",
+          "fontSize": "large",
+          "reducedMotion": false,
+          "highContrast": false,
+          "compactMode": false
+        }
+      },
+      "appearance": {
+        "theme": "light",
+        "primaryColor": "purple",
+        "fontSize": "large",
+        "reducedMotion": false,
+        "highContrast": true,
+        "compactMode": false
+      }
+    },
+    "appearance": {
+      "theme": "light",
+      "primaryColor": "purple",
+      "fontSize": "large",
+      "reducedMotion": false,
+      "highContrast": false,
+      "compactMode": false
+    }
+  },
+  "eventConfigs": [
+    {
+      "id": "config-event-1",
+      "eventId": "event-1",
+      "branding": {
+        "logo": null,
+        "primaryColor": "#6366f1",
+        "secondaryColor": "#8b5cf6",
+        "theme": "Vibrant"
+      },
+      "qrCodes": {
+        "guestCheckin": true,
+        "seatLookup": false,
+        "generatedAt": "2025-09-23T05:24:12.073Z"
+      },
+      "collaboration": {
+        "members": [
+          {
+            "id": "member-1",
+            "name": "Test User",
+            "email": "test@test.com",
+            "role": "admin",
+            "status": "online",
+            "permissions": {
+              "editLayout": true,
+              "manageGuests": true,
+              "exportData": true
+            }
+          },
+          {
+            "id": "member-2",
+            "name": "Google User",
+            "email": "googleuser@gmail.com",
+            "role": "planner",
+            "status": "away",
+            "permissions": {
+              "editLayout": true,
+              "manageGuests": true,
+              "exportData": false
+            }
+          }
+        ]
+      },
+      "versionHistory": {
+        "versions": [
+          {
+            "id": "v2",
+            "version": "v2.0",
+            "status": "current",
+            "description": "Updated branding and QR codes",
+            "timestamp": "2025-09-22T07:50:00Z",
+            "createdBy": "Current User",
+            "notes": [
+              {
+                "id": "note-1",
+                "note": "Updated primary color to match company branding",
+                "createdAt": "2025-09-22T07:50:00Z",
+                "createdBy": "Current User",
+                "version": "v2.0"
+              }
+            ]
+          },
+          {
+            "id": "v1",
+            "version": "v1.0",
+            "status": "published",
+            "description": "Initial event setup",
+            "timestamp": "2024-09-16T10:00:00Z",
+            "createdBy": "Test User",
+            "notes": []
+          },
+          {
+            "id": "v3",
+            "version": "v1.1",
+            "status": "draft",
+            "description": "Updated venue information",
+            "timestamp": "2024-09-17T14:30:00Z",
+            "createdBy": "Test User",
+            "notes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "config-event-2",
+      "eventId": "event-2",
+      "branding": {
+        "logo": null,
+        "primaryColor": "#f59e0b",
+        "secondaryColor": "#10b981",
+        "theme": "Elegant"
+      },
+      "qrCodes": {
+        "guestCheckin": true,
+        "seatLookup": true,
+        "generatedAt": "2024-09-15T12:00:00Z"
+      },
+      "collaboration": {
+        "members": [
+          {
+            "id": "member-3",
+            "name": "Test User",
+            "email": "test@test.com",
+            "role": "admin",
+            "status": "online",
+            "permissions": {
+              "editLayout": true,
+              "manageGuests": true,
+              "exportData": true
+            }
+          }
+        ]
+      },
+      "versions": [
+        {
+          "id": "v1",
+          "version": "v1.0",
+          "status": "current",
+          "description": "Wedding ceremony setup",
+          "timestamp": "2024-09-10T14:30:00Z",
+          "createdBy": "Test User"
+        }
+      ]
+    },
+    {
+      "id": "config-event-3",
+      "eventId": "event-3",
+      "branding": {
+        "logo": null,
+        "primaryColor": "#3b82f6",
+        "secondaryColor": "#ef4444",
+        "theme": "Casual"
+      },
+      "qrCodes": {
+        "guestCheckin": true,
+        "seatLookup": false,
+        "generatedAt": null
+      },
+      "collaboration": {
+        "members": [
+          {
+            "id": "member-4",
+            "name": "Test User",
+            "email": "test@test.com",
+            "role": "admin",
+            "status": "online",
+            "permissions": {
+              "editLayout": true,
+              "manageGuests": true,
+              "exportData": true
+            }
+          },
+          {
+            "id": "member-5",
+            "name": "Andika Pramudya Wardana",
+            "email": "andikapramudya30@gmail.com",
+            "role": "vendor",
+            "status": "offline",
+            "permissions": {
+              "editLayout": false,
+              "manageGuests": true,
+              "exportData": false
+            }
+          }
+        ]
+      },
+      "versions": [
+        {
+          "id": "v1",
+          "version": "v1.0",
+          "status": "published",
+          "description": "Team building event configuration",
+          "timestamp": "2024-09-12T11:15:00Z",
+          "createdBy": "Test User"
+        },
+        {
+          "id": "v2",
+          "version": "v2.0",
+          "status": "current",
+          "description": "Updated capacity and venue details",
+          "timestamp": "2025-09-22T07:58:00Z",
+          "createdBy": "Current User"
+        }
+      ]
+    },
+    {
+      "id": "config-1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "eventId": "1995e1ea-f0ff-49f0-92a7-4bda4d38c9a6",
+      "branding": {
+        "logo": null,
+        "primaryColor": "#8b5cf6",
+        "secondaryColor": "#f59e0b",
+        "theme": "Vibrant"
+      },
+      "qrCodes": {
+        "guestCheckin": true,
+        "seatLookup": true,
+        "generatedAt": "2025-09-22T05:30:00Z"
+      },
+      "collaboration": {
+        "members": [
+          {
+            "id": "member-6",
+            "name": "Current User",
+            "email": "current@user.com",
+            "role": "admin",
+            "status": "online",
+            "permissions": {
+              "editLayout": true,
+              "manageGuests": true,
+              "exportData": true
+            }
+          }
+        ]
+      },
+      "versions": [
+        {
+          "id": "v1",
+          "version": "v1.0",
+          "status": "current",
+          "description": "Birthday celebration setup",
+          "timestamp": "2025-09-16T04:54:02Z",
+          "createdBy": "Current User"
+        }
+      ]
+    }
+  ],
+  "floorplans": [
+    {
+      "id": "aa10",
+      "eventId": "event-1",
+      "canvasSize": {
+        "width": 2000,
+        "height": 1500
+      },
+      "pixelsPerMeter": 50,
+      "elements": [
+        {
+          "id": "table-1759731091268",
+          "type": "table",
+          "x": 225.01028522971055,
+          "y": 134.55856332664328,
+          "width": 180,
+          "height": 90,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "Rectangular Table 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "table",
+            "shape": "rounded-rect",
+            "icon": {},
+            "label": "Rectangular Table",
+            "color": "#8B5CF6",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 180,
+            "defaultHeight": 90,
+            "description": "6-8 person dining table"
+          }
+        },
+        {
+          "id": "stage-1759731094641",
+          "type": "stage",
+          "x": 486.0121623129321,
+          "y": 315.560287586233,
+          "width": 400,
+          "height": 200,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "Stage 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "stage",
+            "shape": "stage",
+            "icon": {},
+            "label": "Stage",
+            "color": "#EF4444",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 400,
+            "defaultHeight": 200,
+            "description": "Presentation stage"
+          }
+        },
+        {
+          "id": "round-table-1759731097327",
+          "type": "round-table",
+          "x": 868.0149096148119,
+          "y": 141.55863001071583,
+          "width": 120,
+          "height": 120,
+          "rotation": 0,
+          "capacity": 8,
+          "name": "Round Table 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "round-table",
+            "shape": "circle",
+            "icon": "Circle",
+            "label": "Round Table",
+            "color": "#3B82F6",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 120,
+            "defaultHeight": 120,
+            "defaultRadius": 60,
+            "description": "8-10 person round table"
+          },
+          "radius": 60
+        },
+        {
+          "id": "vip-1759731099583",
+          "type": "vip",
+          "x": 180,
+          "y": 380,
+          "width": 240,
+          "height": 160,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "VIP Lounge 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "vip",
+            "shape": "rounded-rect",
+            "icon": {},
+            "label": "VIP Lounge",
+            "color": "#F59E0B",
+            "textColor": "#000000",
+            "defaultWidth": 240,
+            "defaultHeight": 160,
+            "description": "VIP seating area"
+          }
+        },
+        {
+          "id": "catering-1759731121337",
+          "type": "catering",
+          "x": 505.01229895883716,
+          "y": 202.55921111477645,
+          "width": 200,
+          "height": 100,
+          "rotation": 0,
+          "capacity": 6,
+          "name": "Buffet Station 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "catering",
+            "shape": "rounded-rect",
+            "icon": {},
+            "label": "Buffet Station",
+            "color": "#F97316",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 200,
+            "defaultHeight": 100,
+            "description": "Food service area"
+          }
+        }
+      ],
+      "roomBoundary": {
+        "vertices": [
+          {
+            "x": 80,
+            "y": 320
+          },
+          {
+            "x": 300,
+            "y": 40
+          }
+        ],
+        "closed": false
+      },
+      "updatedAt": "2025-10-06T06:14:11.222Z",
+      "createdAt": "2025-10-06T06:14:11.223Z"
+    },
+    {
+      "id": "9211",
+      "eventId": "event-2",
+      "canvasSize": {
+        "width": 2000,
+        "height": 1500
+      },
+      "pixelsPerMeter": 50,
+      "elements": [
+        {
+          "id": "cocktail-table-1759733545506",
+          "type": "cocktail-table",
+          "x": 272.01062324852825,
+          "y": 176.55896343107847,
+          "width": 60,
+          "height": 60,
+          "rotation": 0,
+          "capacity": 4,
+          "name": "Cocktail Table 1",
+          "assignedGuests": [],
+          "config": {
+            "id": "cocktail-table",
+            "shape": "circle",
+            "icon": "Circle",
+            "label": "Cocktail Table",
+            "color": "#06B6D4",
+            "textColor": "#FFFFFF",
+            "defaultWidth": 60,
+            "defaultHeight": 60,
+            "defaultRadius": 30,
+            "description": "Standing cocktail table"
+          },
+          "radius": 30
+        }
+      ],
+      "roomBoundary": null,
+      "updatedAt": "2025-10-06T06:52:27.007Z",
+      "createdAt": "2025-10-06T06:52:27.008Z"
+    }
+  ]
+}
