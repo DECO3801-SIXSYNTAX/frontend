@@ -1,16 +1,26 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
-import { events, users } from "@/data";
+import type { EventItem, UserItem } from "@/types";
+import { api } from "@/lib/api";
 
 export default function AdminDashboard() {
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [activity, setActivity] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.listEvents().then(setEvents).catch(()=>{});
+    api.listUsers().then(setUsers).catch(()=>{});
+  }, []);
+
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Welcome back</h1>
         <div className="flex gap-2">
           <Link to="/admin/users"><Button>Invite User</Button></Link>
-          <Link to="/admin/settings"><Button variant="secondary">Open Settings</Button></Link>
         </div>
       </div>
 
@@ -38,7 +48,6 @@ export default function AdminDashboard() {
             <Metric label="Total Events" value={events.length} />
             <Metric label="Active Events" value={events.filter(x=>x.status==="Active").length} />
             <Metric label="Total Users" value={users.length} />
-            <Metric label="Accessibility Flags" value={42} />
           </Card>
           <Card title="Active Team">
             <ul className="space-y-2">
@@ -54,11 +63,13 @@ export default function AdminDashboard() {
 
         <section className="col-span-12 rounded-2xl bg-white p-4 shadow">
           <h2 className="mb-3 font-semibold">Recent Activity</h2>
-          <ul className="space-y-2 text-sm">
-            <li>System sent reminder emails to 120 guests for Tech Conference 2024</li>
-            <li>David Park created a new floor plan template</li>
-            <li>Lisa imported 45 new guests for Annual Graduation</li>
-          </ul>
+          {activity.length === 0 ? (
+            <div className="text-sm text-slate-500">No recent activity yet.</div>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {activity.map((a, i) => (<li key={i}>{a}</li>))}
+            </ul>
+          )}
         </section>
       </div>
     </div>

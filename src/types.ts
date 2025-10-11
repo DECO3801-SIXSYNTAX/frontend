@@ -17,7 +17,7 @@ export interface UserItem {
   email: string;
   role: UserRole;
   status: UserStatus;
-  lastActive: string;
+  lastActive?: string | null;
 }
 
 export type RSVPStatus = "Pending" | "Accepted" | "Declined";

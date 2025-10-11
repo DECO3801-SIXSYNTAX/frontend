@@ -1,12 +1,22 @@
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { events } from "@/data";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import type { EventItem } from "@/types";
+import { api } from "@/lib/api";
 
 export default function EventOverview() {
   const { id } = useParams<{ id: string }>();
-  const ev = events.find(e => e.id === id);
-  if (!ev) return <div>Event not found</div>;
+  const [ev, setEv] = useState<EventItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    api.getEvent(id).then(setEv).catch(e=>setError(String(e)));
+  }, [id]);
+
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!ev) return <div>Loading…</div>;
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-6">

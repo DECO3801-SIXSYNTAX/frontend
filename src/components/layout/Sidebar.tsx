@@ -11,7 +11,7 @@ export default function Sidebar() {
         <Item to="/admin" icon="🏠" label="Dashboard" />
         <Item to="/admin/events" icon="📅" label="View Events" />
         <Item to="/admin/users" icon="👥" label="Manage Users" />
-        <Item to="/admin/settings" icon="⚙️" label="System Settings" />
+    {/* System Settings removed */}
       </div>
     </aside>
   );
