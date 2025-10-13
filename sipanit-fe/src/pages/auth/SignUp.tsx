@@ -12,7 +12,7 @@ interface SignUpPayload {
   experience?: string;
   specialty?: string;
 }
-import Input from "@/components/Input";
+import Input from "@/components/ui/Input";
 
 import DefaultButton from "@/components/ui/button";
 import {

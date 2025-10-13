@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import Input from "@/components/Input";
+import Input from "@/components/ui/Input";
 import DefaultButton from "@/components/ui/button";
 import { Lock, Calendar, CheckCircle, XCircle, X, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";

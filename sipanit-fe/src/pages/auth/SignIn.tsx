@@ -14,7 +14,7 @@ interface User {
   experience?: string;
   specialty?: string;
 }
-import Input from "@/components/Input";
+import Input from "@/components/ui/Input";
 import DefaultButton from "../../components/ui/button";
 import GoogleButton from "../../components/ui/GoogleButton";
 import SignUp from "./SignUp";
