@@ -25,7 +25,7 @@ interface GoogleCredentialResponse {
 interface GoogleButtonProps {
   onSuccess?: (user: User) => void;
   onError?: (error: string) => void;
-  role?: 'planner' | 'vendor';
+  role?: 'admin';
 }
 
 export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonProps) {

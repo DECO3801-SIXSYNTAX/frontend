@@ -1,8 +1,36 @@
 import axios from "axios";
-import { LoginPayload, User, SignUpPayload } from "../services/AuthService";
 
-const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
-const DASHBOARD_API_URL = process.env.REACT_APP_DASHBOARD_API_URL || "http://localhost:3002";
+// Type definitions (duplicated to avoid circular dependency)
+interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+interface SignUpPayload {
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
+
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const DASHBOARD_API_URL = import.meta.env.VITE_DASHBOARD_API_URL || "http://localhost:3002";
 
 // Function to generate UUID v4
 function generateUUID(): string {
@@ -13,7 +41,7 @@ function generateUUID(): string {
   });
 }
 
-export async function apiLogin(data: LoginPayload): Promise<User[]> {
+export async function apiLogin(_data: LoginPayload): Promise<User[]> {
   const res = await axios.get<User[]>(`${API_URL}/users`);
   return res.data;
 }
@@ -74,7 +102,7 @@ export interface GoogleAuthResponse {
 }
 
 // Mock Google authentication function for development (only used when Django is completely unavailable)
-async function mockGoogleAuth(idToken: string, role?: string): Promise<GoogleAuthResponse> {
+async function mockGoogleAuth(_idToken: string, role?: string): Promise<GoogleAuthResponse> {
   console.log('Using mock Google authentication with json-server');
 
   // Simulate API delay

@@ -120,7 +120,7 @@ export default function SignIn() {
           id: 'mock-user-' + Date.now(),
           email: email,
           name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-          role: 'planner' as const,
+          role: 'admin' as const,
           password: password
         };
 

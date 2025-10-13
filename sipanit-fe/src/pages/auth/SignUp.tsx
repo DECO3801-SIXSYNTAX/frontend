@@ -44,7 +44,7 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
     name: "",
     email: "",
     password: "",
-    role: "planner",
+    role: "admin",
     company: "",
     phone: "",
     experience: "",
@@ -91,7 +91,7 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
       return;
     }
 
-    if (formData.role === "planner") {
+    if (formData.role === "admin") {
       if (
         !formData.company ||
         !formData.phone ||
@@ -345,9 +345,9 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => handleInputChange("role", "planner")}
+                onClick={() => handleInputChange("role", "admin")}
                 className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                  formData.role === "planner"
+                  formData.role === "admin"
                     ? "border-indigo-500 bg-indigo-50 text-indigo-700"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                 }`}
@@ -371,7 +371,7 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
           </div>
 
           {/* Planner-specific */}
-          {formData.role === "planner" && (
+          {formData.role === "admin" && (
             <div className="space-y-4 pt-4 border-t border-gray-200">
               <h3 className="font-medium text-gray-800">Planner Information</h3>
 

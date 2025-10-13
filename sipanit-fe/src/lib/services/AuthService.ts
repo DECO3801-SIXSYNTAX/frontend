@@ -2,7 +2,7 @@ import axios from "axios";
 import { apiLogin, apiUpdateUser, apiCreateUser, apiCheckEmailExists, apiGetUser } from "../api/auth";
 import { Logger } from "../utils/logger";
 
-const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 // Django API response types
 interface DjangoLoginResponse {
@@ -31,8 +31,8 @@ export interface SignUpPayload {
   email: string;
   password: string;
   name: string;
-  role: 'planner' | 'vendor';
-  // Planner-specific fields (optional for vendors)
+  role: 'admin';
+  // Admin-specific fields (optional)
   company?: string;
   phone?: string;
   experience?: string;
@@ -44,8 +44,8 @@ export interface User {
   email: string;
   password: string;
   name: string;
-  role: 'planner' | 'vendor';
-  // Planner-specific fields (optional for vendors)
+  role: 'admin';
+  // Admin-specific fields (optional)
   company?: string;
   phone?: string;
   experience?: string;
@@ -115,16 +115,14 @@ export class AuthService {
       throw new Error("Password must be at least 6 characters long");
     }
 
-    // Validate planner-specific fields
-    if (data.role === 'planner') {
-      if (!data.company || !data.phone || !data.experience || !data.specialty) {
-        throw new Error("Company, phone, experience, and specialty are required for planners");
-      }
-
-      // Validate phone format (basic)
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      if (!phoneRegex.test(data.phone.replace(/[\s\-\(\)]/g, ''))) {
-        throw new Error("Please enter a valid phone number");
+    // Validate admin-specific fields (optional for now)
+    if (data.company || data.phone || data.experience || data.specialty) {
+      // Validate phone format if provided
+      if (data.phone) {
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(data.phone.replace(/[\s\-\(\)]/g, ''))) {
+          throw new Error("Please enter a valid phone number");
+        }
       }
     }
 
@@ -137,19 +135,17 @@ export class AuthService {
         password2: data.password, // Django requires password confirmation
         first_name: data.name,
         role: data.role,
-        ...(data.role === "planner" && {
-          company: data.company,
-          phone: data.phone,
-          experience: data.experience,
-          specialty: data.specialty
-        })
+        company: data.company,
+        phone: data.phone,
+        experience: data.experience,
+        specialty: data.specialty
       });
 
       const user: User = {
         id: response.data.id,
         email: response.data.email,
         name: response.data.name,
-        role: response.data.role as "planner" | "vendor",
+        role: response.data.role as "admin",
         password: data.password, // Include password for User interface compatibility
         company: response.data.company,
         phone: response.data.phone,
