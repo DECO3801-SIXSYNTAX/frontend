@@ -67,7 +67,7 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
       if (!clientId || clientId === "your-google-client-id") {
-        console.error('Google Client ID not configured. Please set REACT_APP_GOOGLE_CLIENT_ID in your .env file');
+        console.error('Google Client ID not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file');
         setShowFallback(true);
         return;
       }
