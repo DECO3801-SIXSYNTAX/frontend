@@ -19,10 +19,6 @@ export default function AdminDashboard() {
     <div className="mx-auto max-w-[1200px] space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <div className="flex gap-2">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">Teams List</Button>
-          <Button variant="secondary" className="border border-slate-300 bg-white text-slate-700">Open Settings</Button>
-        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
@@ -57,7 +53,7 @@ export default function AdminDashboard() {
 
         <aside className="col-span-12 lg:col-span-4 space-y-6">
           <div className="rounded-lg bg-white border border-slate-200 p-6">
-            <div className="mb-4 font-semibold text-slate-900">Org Metrics</div>
+            <div className="mb-4 font-semibold text-slate-900">Activity List</div>
             <div className="space-y-4">
               <div className="flex items-center justify-center flex-col py-4 px-4 rounded-lg bg-slate-50">
                 <div className="text-3xl font-bold text-blue-600">{events.length}</div>
