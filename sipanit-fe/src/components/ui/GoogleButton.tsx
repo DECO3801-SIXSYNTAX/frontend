@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { apiGoogleLogin } from "@/lib/api/auth";
+import { apiGoogleLogin } from "../../lib/api/auth";
 
 // Type definition (duplicated to avoid circular dependency)
 interface User {

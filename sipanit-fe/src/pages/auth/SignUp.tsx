@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AuthService } from "../../services/AuthService";
+import { AuthService } from "../../lib/services/AuthService";
 
 // Type definition (duplicated to avoid circular dependency)
 interface SignUpPayload {

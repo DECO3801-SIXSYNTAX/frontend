@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthService } from "../../services/AuthService";
+import { AuthService } from "../../lib/services/AuthService";
 
 // Type definition (duplicated to avoid circular dependency)
 interface User {
