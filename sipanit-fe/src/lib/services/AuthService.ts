@@ -1,8 +1,26 @@
 import axios from "axios";
-import { apiLogin, apiUpdateUser, apiCreateUser, apiCheckEmailExists, apiGetUser } from "../api/auth";
-import { Logger } from "../utils/logger";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+// Helper functions to avoid circular dependency
+const apiGetUser = async (userId: string): Promise<User> => {
+  const response = await axios.get<User>(`${API_URL}/users/${userId}`);
+  return response.data;
+};
+
+const apiUpdateUser = async (userId: string, userData: Partial<User>): Promise<User> => {
+  const response = await axios.patch<User>(`${API_URL}/users/${userId}`, userData);
+  return response.data;
+};
+
+const apiCheckEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    const response = await axios.get<User[]>(`${API_URL}/users`);
+    return response.data.some(user => user.email === email);
+  } catch (error) {
+    return false;
+  }
+};
 
 // Django API response types
 interface DjangoLoginResponse {
@@ -273,7 +291,8 @@ export class AuthService {
       // Check if new email already exists (exclude current user)
       const emailExists = await apiCheckEmailExists(updates.email);
       if (emailExists) {
-        const users = await apiLogin({ email: "", password: "" });
+        const response = await axios.get<User[]>(`${API_URL}/users`);
+        const users = response.data;
         const existingUser = users.find((u: User) => u.email === updates.email);
         if (existingUser && existingUser.id !== userId) {
           throw new Error("Email address is already in use");
