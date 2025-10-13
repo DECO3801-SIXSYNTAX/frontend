@@ -1,6 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { setAuthToken, isAuthenticated } from "@/lib/auth";
 
 export default function Topbar() {
+  const navigate = useNavigate();
+  const onSignOut = () => { setAuthToken(null); navigate('/login'); };
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-[1400px] px-6 h-16 flex items-center justify-between">
@@ -16,7 +19,11 @@ export default function Topbar() {
           <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100">
             🔔 <span className="sr-only">Notifications</span>
           </button>
-          <div className="h-8 w-8 rounded-full bg-slate-200" />
+          {isAuthenticated() ? (
+            <button onClick={onSignOut} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100">Sign out</button>
+          ) : (
+            <Link to="/login" className="text-sm text-blue-600 hover:underline">Sign in</Link>
+          )}
         </div>
       </div>
     </header>

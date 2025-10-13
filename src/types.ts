@@ -1,6 +1,7 @@
 export type EventStatus = "Active" | "Planning" | "Draft" | "Archived";
 export interface EventItem {
   id: string;
+  slug: string;
   name: string;
   date: string;   // ISO
   venue: string;
@@ -28,10 +29,12 @@ export interface GuestItem {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   group?: string;          // e.g., "VIP", "Company A", "Family"
   dietary?: DietaryTag[];
   access?: AccessTag[];
   rsvp: RSVPStatus;
   seat?: string;           // e.g., "T3-S12" (edit on Seating page)
   checkedIn: boolean;
+  tags?: string[];
 }
