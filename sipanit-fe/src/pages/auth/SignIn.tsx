@@ -150,9 +150,9 @@ export default function SignIn() {
       // TODO: Replace with real authentication when backend is ready
       if (email && password) {
         // Mock user with role based on email for testing
-        let role: 'admin' | 'planner' | 'vendor' = 'admin';
-        if (email.includes('planner')) role = 'planner';
-        else if (email.includes('vendor')) role = 'vendor';
+        let role: 'admin' | 'planner' | 'vendor' = 'planner';
+        if (email.includes('vendor')) role = 'vendor';
+        else if (email === 'admin@sipanit.com' || email === 'superadmin@sipanit.com') role = 'admin';
         
         const mockUser = {
           id: 'mock-user-' + Date.now(),

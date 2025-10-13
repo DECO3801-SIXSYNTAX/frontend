@@ -56,6 +56,11 @@ export default function AdminDashboard() {
           navigate('/');
           return;
         }
+        // Additional check for superadmin emails
+        if (user.email !== 'admin@sipanit.com' && user.email !== 'superadmin@sipanit.com') {
+          navigate('/');
+          return;
+        }
         setCurrentUser(user);
       } catch (error) {
         navigate('/auth/sign-in');
