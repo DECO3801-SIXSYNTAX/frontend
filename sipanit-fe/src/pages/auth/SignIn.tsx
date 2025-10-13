@@ -146,36 +146,21 @@ export default function SignIn() {
     showMessage("Signing you in...", "loading");
 
     try {
-      // For now, use mock authentication to work with the dashboard
-      // TODO: Replace with real authentication when backend is ready
-      if (email && password) {
-        // Mock user with role based on email for testing
-        let role: 'admin' | 'planner' | 'vendor' = 'planner';
-        if (email.includes('vendor')) role = 'vendor';
-        else if (email === 'admin@sipanit.com' || email === 'superadmin@sipanit.com') role = 'admin';
-        
-        const mockUser = {
-          id: 'mock-user-' + Date.now(),
-          email: email,
-          name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-          role: role,
-          password: password
-        };
+      // Use real authentication with Django backend
+      const user = await authService.signIn({ email, password });
 
-        // ✅ Berhasil → tampilin success + trigger ending animation
-        showMessage(`Welcome back, ${mockUser.name}! Sign in successful.`, "success");
+      // ✅ Berhasil → tampilin success + trigger ending animation
+      showMessage(`Welcome back, ${user.name}! Sign in successful.`, "success");
 
-        // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
-        setTimeout(() => setExiting(true), 500);
+      // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
+      setTimeout(() => setExiting(true), 500);
 
-        // Navigate to dashboard after animation
-        setTimeout(() => {
-          // Store user data and redirect based on role
-          localStorage.setItem('user', JSON.stringify(mockUser));
-          redirectBasedOnRole(mockUser);
-        }, 900);
-        return;
-      }
+      // Navigate to dashboard after animation
+      setTimeout(() => {
+        // Store user data and redirect based on role
+        localStorage.setItem('user', JSON.stringify(user));
+        redirectBasedOnRole(user);
+      }, 900);
     } catch (err: any) {
       let errorMessage = "An error occurred. Please try again.";
 
