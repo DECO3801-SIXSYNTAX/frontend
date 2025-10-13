@@ -145,7 +145,7 @@ export class AuthService {
         id: response.data.id,
         email: response.data.email,
         name: response.data.name,
-        role: response.data.role as "admin",
+        role: response.data.role as "admin" | "planner" | "vendor",
         password: data.password, // Include password for User interface compatibility
         company: response.data.company,
         phone: response.data.phone,
