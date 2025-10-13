@@ -1,6 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { apiGoogleLogin } from "@/lib/api/auth";
-import { User } from "@/lib/services/AuthService";
+
+// Type definition (duplicated to avoid circular dependency)
+interface User {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
 
 // Global types for Google Identity Services
 declare global {

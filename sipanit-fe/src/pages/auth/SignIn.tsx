@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { AuthService, User } from "@/lib/services/AuthService";
+import { AuthService } from "@/lib/services/AuthService";
+
+// Type definition (duplicated to avoid circular dependency)
+interface User {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
 import Input from "@/components/ui/Input";
 import DefaultButton from "@/components/ui/button";
 import GoogleButton from "@/components/ui/GoogleButton";

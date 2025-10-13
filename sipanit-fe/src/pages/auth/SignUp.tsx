@@ -1,5 +1,17 @@
 import React, { useState } from "react";
-import { AuthService, SignUpPayload } from "@/lib/services/AuthService";
+import { AuthService } from "@/lib/services/AuthService";
+
+// Type definition (duplicated to avoid circular dependency)
+interface SignUpPayload {
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
 import Input from "@/components/ui/Input";
 
 import DefaultButton from "@/components/ui/button";
