@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 import type { CSSProperties } from "react";
 
-const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 // Animation variants matching SignIn component
 const easeOutBack: NonNullable<Transition["ease"]> = [0.16, 1, 0.3, 1];

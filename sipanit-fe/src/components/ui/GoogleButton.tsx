@@ -64,7 +64,7 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
     const initializeGoogleSignIn = () => {
       if (!window.google || !googleButtonRef.current) return;
 
-      const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
       if (!clientId || clientId === "your-google-client-id") {
         console.error('Google Client ID not configured. Please set REACT_APP_GOOGLE_CLIENT_ID in your .env file');
