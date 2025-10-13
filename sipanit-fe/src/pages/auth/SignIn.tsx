@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthService } from "@/lib/services/AuthService";
+import { AuthService } from "../../services/AuthService";
 
 // Type definition (duplicated to avoid circular dependency)
 interface User {
@@ -14,9 +14,9 @@ interface User {
   experience?: string;
   specialty?: string;
 }
-import Input from "@/components/ui/Input";
-import DefaultButton from "@/components/ui/button";
-import GoogleButton from "@/components/ui/GoogleButton";
+import Input from "../../components/Input";
+import DefaultButton from "../../components/ui/button";
+import GoogleButton from "../../components/ui/GoogleButton";
 import SignUp from "./SignUp";
 import { Mail, Lock, Calendar, CheckCircle, XCircle, X, Eye, EyeOff } from "lucide-react";
 import type { Variants, Transition } from "framer-motion";

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AuthService } from "@/lib/services/AuthService";
+import { AuthService } from "../../services/AuthService";
 
 // Type definition (duplicated to avoid circular dependency)
 interface SignUpPayload {
@@ -12,7 +12,7 @@ interface SignUpPayload {
   experience?: string;
   specialty?: string;
 }
-import Input from "@/components/ui/Input";
+import Input from "../../components/Input";
 
 import DefaultButton from "@/components/ui/button";
 import {
