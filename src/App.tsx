@@ -5,8 +5,6 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ViewEvents from "./pages/admin/ViewEvents";
 import ManageUsers from "./pages/admin/ManageUsers";
 import EventOverview from "./pages/admin/EventOverview";
-import GuestManagement from "./pages/planner/GuestManagement";
-import EventSettingsPage from "@/pages/planner/EventSettings";
 import Login from "@/pages/auth/Login";
 import { isAuthenticated, AUTH_ENABLED } from "@/lib/auth";
 
@@ -37,8 +35,6 @@ export default function App() {
             <Route path="/admin/events/:slug" element={<AdminOnly><EventOverview /></AdminOnly>} />
             <Route path="/admin/users" element={<AdminOnly><ManageUsers /></AdminOnly>} />
             <Route path="*" element={<div>Not Found</div>} />
-            <Route path="/planner/events/:slug/guests" element={<Protected><GuestManagement /></Protected>} />
-            <Route path="/planner/events/:slug/settings" element={<Protected><EventSettingsPage /></Protected>} />
           </Routes>
         </main>
       </div>
