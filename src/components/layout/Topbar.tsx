@@ -1,9 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
-import { setAuthToken, isAuthenticated } from "@/lib/auth";
+import { signOut, isAuthenticated } from "@/lib/auth";
 
 export default function Topbar() {
   const navigate = useNavigate();
-  const onSignOut = () => { setAuthToken(null); navigate('/login'); };
+  const onSignOut = () => { signOut(); navigate('/login'); };
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-[1400px] px-6 h-16 flex items-center justify-between">

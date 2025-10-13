@@ -1,5 +1,5 @@
 import type { EventItem, UserItem, GuestItem } from "@/types";
-import { getAuthToken } from "@/lib/auth";
+import { getAuthToken, getRefreshToken, setAuthToken, AUTH_REFRESH_PATH } from "@/lib/auth";
 
 export const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
 
@@ -20,28 +20,66 @@ function withAuth(init?: RequestInit): RequestInit {
   return { ...init, headers };
 }
 
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  try {
+    const url = (() => {
+      if (AUTH_REFRESH_PATH.startsWith('http')) return AUTH_REFRESH_PATH;
+      const base = new URL(API_BASE);
+      if (AUTH_REFRESH_PATH.startsWith('/')) return `${base.origin}${AUTH_REFRESH_PATH}`;
+      return `${API_BASE.replace(/\/$/, '/')}${AUTH_REFRESH_PATH}`;
+    })();
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const newAccess = data.access as string | undefined;
+    if (newAccess) setAuthToken(newAccess);
+    return newAccess ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  let res = await fetch(input, withAuth(init));
+  if (res.status === 401) {
+    const newAccess = await refreshAccessToken();
+    if (newAccess) {
+      res = await fetch(input, withAuth(init));
+    }
+  }
+  return handle<T>(res);
+}
+
 export const api = {
   // Events
   listEvents: (): Promise<EventItem[]> =>
-    fetch(`${API_BASE}/events/`, withAuth()).then((res) => handle<EventItem[]>(res)),
-  getEvent: (slug: string): Promise<EventItem> =>
-    fetch(`${API_BASE}/events/${slug}/`, withAuth()).then((res) => handle<EventItem>(res)),
-  listEventGuests: (slug: string): Promise<GuestItem[]> =>
-    fetch(`${API_BASE}/events/${slug}/guests/`, withAuth()).then((res) => handle<GuestItem[]>(res)),
+    // Backend mounts events app at /api/events/, router registers 'events' => /api/events/events/
+    fetchJson<EventItem[]>(`${API_BASE}/events/events/`),
+  getEvent: (id: string): Promise<EventItem> =>
+    fetchJson<EventItem>(`${API_BASE}/events/events/${id}/`),
+  listEventGuests: (_eventId: string): Promise<GuestItem[]> =>
+    // GuestViewSet is at /api/events/guests/ (no per-event filter in API yet)
+    fetchJson<GuestItem[]>(`${API_BASE}/events/guests/`),
 
   // Users
   listUsers: (): Promise<UserItem[]> =>
-    fetch(`${API_BASE}/users/`, withAuth()).then((res) => handle<UserItem[]>(res)),
+    fetchJson<UserItem[]>(`${API_BASE}/users/`),
   inviteUser: (payload: { name: string; email: string; role: string }): Promise<UserItem> =>
-    fetch(`${API_BASE}/users/`, withAuth({
+    fetchJson<UserItem>(`${API_BASE}/users/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    })).then((res) => handle<UserItem>(res)),
+    }),
   updateUser: (id: number, patch: Partial<Omit<UserItem, 'id'>>): Promise<UserItem> =>
-    fetch(`${API_BASE}/users/${id}/`, withAuth({
+    fetchJson<UserItem>(`${API_BASE}/users/${id}/`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
-    })).then((res) => handle<UserItem>(res)),
+    }),
 };

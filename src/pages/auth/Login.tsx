@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '@/lib/api';
-import { setAuthToken, AUTH_LOGIN_PATH } from '@/lib/auth';
+import { setAuthToken, setRefreshToken, AUTH_LOGIN_PATH } from '@/lib/auth';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -15,7 +15,7 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      // Adjust endpoint to your backend auth; example for JWT via /api/auth/login/
+      // Adjust endpoint to backend JWT: typically /api/auth/token/
       const url = (() => {
         if (AUTH_LOGIN_PATH.startsWith('http')) return AUTH_LOGIN_PATH;
         const base = new URL(API_BASE);
@@ -32,10 +32,11 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || 'Login failed');
-      // Expecting { token: '...' } or { access: '...' } shape
+      // SimpleJWT returns { access, refresh }
       const token = data.token || data.access;
       if (!token) throw new Error('Token missing in response');
       setAuthToken(token);
+      if (data.refresh) setRefreshToken(data.refresh);
       navigate('/admin');
     } catch (err: any) {
       setError(err.message || String(err));

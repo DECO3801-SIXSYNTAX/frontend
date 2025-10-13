@@ -37,7 +37,7 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <div className="font-medium text-slate-900">{e.name}</div>
-                    <div className="text-sm text-slate-500">{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {e.venue}</div>
+                    <div className="text-sm text-slate-500">{e.date ? new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'} • {e.venue || 'TBD'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

@@ -1,6 +1,8 @@
-export const AUTH_TOKEN_KEY = 'authToken';
+export const AUTH_TOKEN_KEY = 'authAccessToken';
+export const AUTH_REFRESH_KEY = 'authRefreshToken';
 export const AUTH_ENABLED = String(import.meta.env.VITE_AUTH_ENABLED || 'false') === 'true';
-export const AUTH_LOGIN_PATH = String(import.meta.env.VITE_AUTH_LOGIN_PATH || '/api/auth/login/');
+export const AUTH_LOGIN_PATH = String(import.meta.env.VITE_AUTH_LOGIN_PATH || '/api/auth/token/');
+export const AUTH_REFRESH_PATH = String(import.meta.env.VITE_AUTH_REFRESH_PATH || '/api/auth/token/refresh/');
 
 export function getAuthToken(): string | null {
   try {
@@ -14,6 +16,23 @@ export function setAuthToken(token: string | null) {
   try {
     if (!token) localStorage.removeItem(AUTH_TOKEN_KEY);
     else localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
+}
+
+export function getRefreshToken(): string | null {
+  try {
+    return localStorage.getItem(AUTH_REFRESH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setRefreshToken(token: string | null) {
+  try {
+    if (!token) localStorage.removeItem(AUTH_REFRESH_KEY);
+    else localStorage.setItem(AUTH_REFRESH_KEY, token);
   } catch {
     // ignore
   }
@@ -61,4 +80,13 @@ export function isAdmin(): boolean {
   const roles = c.roles || c.groups || c.permissions;
   if (Array.isArray(roles) && roles.map((r: any)=>String(r).toLowerCase()).includes('admin')) return true;
   return false;
+}
+
+export function signOut() {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_REFRESH_KEY);
+  } catch {
+    // ignore
+  }
 }

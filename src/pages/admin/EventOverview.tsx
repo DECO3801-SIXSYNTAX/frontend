@@ -31,7 +31,7 @@ export default function EventOverview() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">{ev.name}</h1>
           <div className="text-sm text-slate-500 mt-1">
-            {new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {ev.venue}
+            {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'} • {ev.venue || 'TBD'}
           </div>
         </div>
         <Badge>{ev.status}</Badge>
