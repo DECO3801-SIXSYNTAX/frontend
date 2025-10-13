@@ -13,13 +13,7 @@ import SignIn from "./pages/auth/SignIn"
 import SignUp from "./pages/auth/SignUp"
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage"
 import AdminDashboard from "./pages/admin/AdminDashboard"
-import ViewEvents from "./pages/admin/ViewEvents"
-import ManageUsers from "./pages/admin/ManageUsers"
-import EventOverview from "./pages/admin/EventOverview"
-import SystemSettings from "./pages/admin/SystemSettings"
 import PlannerDashboard from "./pages/planner/PlannerDashboard"
-import GuestManagement from "./pages/planner/GuestManagement"
-import EventSettingsPage from "./pages/planner/EventSettings"
 
 function App() {
   return (
@@ -40,13 +34,7 @@ function App() {
       <Route path="/kiosk/verify" element={<Verify />} />
       <Route path="/kiosk/events/:eventId/map" element={<SeatView />} />
       <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/events" element={<ViewEvents />} />
-      <Route path="/admin/events/:id" element={<EventOverview />} />
-      <Route path="/admin/users" element={<ManageUsers />} />
-      <Route path="/admin/settings" element={<SystemSettings />} />
       <Route path="/planner/dashboard" element={<PlannerDashboard />} />
-      <Route path="/planner/events/:id/guests" element={<GuestManagement />} />
-      <Route path="/planner/events/:id/settings" element={<EventSettingsPage />} />
     </Routes>
   )
 }
