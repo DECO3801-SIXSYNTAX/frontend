@@ -6,7 +6,7 @@ interface SignUpPayload {
   email: string;
   password: string;
   name: string;
-  role: 'admin';
+  role: 'admin' | 'planner' | 'vendor';
   company?: string;
   phone?: string;
   experience?: string;
@@ -56,7 +56,7 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
     name: "",
     email: "",
     password: "",
-    role: "admin",
+    role: "planner",
     company: "",
     phone: "",
     experience: "",
@@ -103,7 +103,7 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
       return;
     }
 
-    if (formData.role === "admin") {
+    if (formData.role === "planner") {
       if (
         !formData.company ||
         !formData.phone ||
@@ -354,7 +354,7 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
             <label className="block text-sm font-medium text-gray-700 mb-2">
               I am a...
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => handleInputChange("role", "admin")}
@@ -365,7 +365,19 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
                 }`}
               >
                 <Briefcase size={20} className="mx-auto mb-1" />
-                Event Planner
+                Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInputChange("role", "planner")}
+                className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                  formData.role === "planner"
+                    ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <Calendar size={20} className="mx-auto mb-1" />
+                Planner
               </button>
               <button
                 type="button"
@@ -377,13 +389,13 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
                 }`}
               >
                 <Building size={20} className="mx-auto mb-1" />
-                Service Vendor
+                Vendor
               </button>
             </div>
           </div>
 
           {/* Planner-specific */}
-          {formData.role === "admin" && (
+          {formData.role === "planner" && (
             <div className="space-y-4 pt-4 border-t border-gray-200">
               <h3 className="font-medium text-gray-800">Planner Information</h3>
 

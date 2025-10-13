@@ -34,6 +34,14 @@ export function Hero() {
               >
                 <Link to="/auth/sign-in">Login</Link>
               </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="text-[#7C3AED] hover:bg-[#7C3AED]/10 px-8 py-3 text-lg rounded-xl border border-[#7C3AED]/20 hover:border-[#7C3AED]/40 transition-all duration-200"
+              >
+                <Link to="/admin">Admin Dashboard</Link>
+              </Button>
             </div>
           </div>
 

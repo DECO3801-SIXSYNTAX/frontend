@@ -17,6 +17,7 @@ import ViewEvents from "./pages/admin/ViewEvents"
 import ManageUsers from "./pages/admin/ManageUsers"
 import EventOverview from "./pages/admin/EventOverview"
 import SystemSettings from "./pages/admin/SystemSettings"
+import PlannerDashboard from "./pages/planner/PlannerDashboard"
 import GuestManagement from "./pages/planner/GuestManagement"
 import EventSettingsPage from "./pages/planner/EventSettings"
 
@@ -43,6 +44,7 @@ function App() {
       <Route path="/admin/events/:id" element={<EventOverview />} />
       <Route path="/admin/users" element={<ManageUsers />} />
       <Route path="/admin/settings" element={<SystemSettings />} />
+      <Route path="/planner/dashboard" element={<PlannerDashboard />} />
       <Route path="/planner/events/:id/guests" element={<GuestManagement />} />
       <Route path="/planner/events/:id/settings" element={<EventSettingsPage />} />
     </Routes>

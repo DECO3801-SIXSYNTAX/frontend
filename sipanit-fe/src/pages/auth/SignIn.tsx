@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthService } from "@/lib/services/AuthService";
 
 // Type definition (duplicated to avoid circular dependency)
@@ -7,7 +8,7 @@ interface User {
   email: string;
   password: string;
   name: string;
-  role: 'admin';
+  role: 'admin' | 'planner' | 'vendor';
   company?: string;
   phone?: string;
   experience?: string;
@@ -91,11 +92,30 @@ const haloVariants: Variants = {
 };
 
 export default function SignIn() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | "loading">("error");
+
+  // Function to redirect based on user role
+  const redirectBasedOnRole = (user: User) => {
+    switch (user.role) {
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'planner':
+        navigate('/planner/dashboard'); // We'll create this route
+        break;
+      case 'vendor':
+        navigate('/vendor');
+        break;
+      default:
+        navigate('/');
+        break;
+    }
+  };
   const [showPopup, setShowPopup] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
 
@@ -129,11 +149,16 @@ export default function SignIn() {
       // For now, use mock authentication to work with the dashboard
       // TODO: Replace with real authentication when backend is ready
       if (email && password) {
+        // Mock user with role based on email for testing
+        let role: 'admin' | 'planner' | 'vendor' = 'admin';
+        if (email.includes('planner')) role = 'planner';
+        else if (email.includes('vendor')) role = 'vendor';
+        
         const mockUser = {
           id: 'mock-user-' + Date.now(),
           email: email,
           name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-          role: 'admin' as const,
+          role: role,
           password: password
         };
 
@@ -145,8 +170,9 @@ export default function SignIn() {
 
         // Navigate to dashboard after animation
         setTimeout(() => {
-          // For now, just show success message
-          console.log('Would navigate to dashboard');
+          // Store user data and redirect based on role
+          localStorage.setItem('user', JSON.stringify(mockUser));
+          redirectBasedOnRole(mockUser);
         }, 900);
         return;
       }
@@ -488,7 +514,9 @@ export default function SignIn() {
                     // 🎬 Ending setelah Google success (opsional)
                     setTimeout(() => setExiting(true), 350);
                     setTimeout(() => {
-                      console.log('Would navigate to dashboard');
+                      // Store user data and redirect based on role
+                      localStorage.setItem('user', JSON.stringify(user));
+                      redirectBasedOnRole(user);
                     }, 800);
                   }}
                   onError={(error) => showMessage(`Google sign in failed: ${error}`, "error")}
