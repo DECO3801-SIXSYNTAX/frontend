@@ -1,43 +1,91 @@
 import { useState, useEffect } from "react"
-import { useParams } from "react-router-dom"
-import { Search, Bell, Utensils, Accessibility } from "lucide-react"
+import { useParams, useNavigate, Link } from "react-router-dom"
+import { Search, Bell, ArrowLeft } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Stage, Layer, Rect, Circle, Text } from "react-konva"
+import {
+  getVendorEvent,
+  getVendorLayout,
+  getVendorGuests,
+  listVendorEvents,
+  type FirestoreEvent,
+  type VendorLayout,
+  type Guest,
+} from "@/services/vendorApi"
 
-const mockEventData = {
-  1: { name: "Tech Conference 2024", venue: "Convention Center" },
-  2: { name: "Annual Gala Dinner", venue: "Grand Ballroom" },
-  3: { name: "Product Launch Event", venue: "Innovation Hub" },
-  4: { name: "Music Festival 2024", venue: "Golden Gate Park" },
-  5: { name: "Business Summit", venue: "Moscone Center" },
-  6: { name: "Wedding Reception", venue: "The Ritz-Carlton" },
-}
-
-const mockGuests = [
-  { id: 1, name: "John Doe", table: "Table 1", dietary: ["Vegetarian"], accessibility: ["Wheelchair"] },
-  { id: 2, name: "Jane Smith", table: "Table 2", dietary: ["Gluten-Free"], accessibility: [] },
-  { id: 3, name: "Mike Johnson", table: "Table 1", dietary: ["Vegan"], accessibility: [] },
-  { id: 4, name: "Sarah Wilson", table: "VIP 1", dietary: ["Kosher"], accessibility: ["Hearing Aid"] },
-]
-
-const notifications = [
-  { id: 1, message: "Guest John Doe moved to Table 3", time: "2 min ago", type: "update" },
-  { id: 2, message: "New dietary requirement added for Table 5", time: "5 min ago", type: "dietary" },
-  { id: 3, message: "Accessibility request updated", time: "10 min ago", type: "accessibility" },
-]
-
-export function SeatingView() {
-  const { eventId } = useParams()
+export default function SeatingView() {
+  const params = useParams<{ eventId?: string }>()
+  const navigate = useNavigate()
+  const [eventId, setEventId] = useState<string | undefined>(params.eventId)
+  
+  const [event, setEvent] = useState<FirestoreEvent | null>(null)
+  const [layout, setLayout] = useState<VendorLayout | null>(null)
+  const [guests, setGuests] = useState<Guest[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedGuest, setSelectedGuest] = useState(null)
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const eventData = mockEventData[eventId as keyof typeof mockEventData] || {
-    name: "Unknown Event",
-    venue: "Unknown Venue",
-  }
+  // If no eventId in URL, fetch first event and redirect
+  useEffect(() => {
+    const loadFirstEvent = async () => {
+      if (eventId) return // Already have eventId
+      
+      try {
+        setLoading(true)
+        const events = await listVendorEvents()
+        
+        if (events.length > 0) {
+          const firstEventId = events[0].id
+          setEventId(firstEventId)
+          // Navigate to the first event
+          navigate(`/vendor/seating/${firstEventId}`, { replace: true })
+        } else {
+          setError("No events assigned to your vendor account.")
+          setLoading(false)
+        }
+      } catch (err: any) {
+        console.error("Error loading first event:", err)
+        setError(err?.response?.data?.detail || err?.message || "Failed to load events")
+        setLoading(false)
+      }
+    }
 
+    loadFirstEvent()
+  }, [eventId, navigate])
+
+  // Load event data when eventId is available
+  useEffect(() => {
+    if (!eventId) return
+
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const [eventData, layoutData, guestsData] = await Promise.all([
+          getVendorEvent(eventId),
+          getVendorLayout(eventId),
+          getVendorGuests(eventId, { limit: 200 }),
+        ])
+        
+        setEvent(eventData)
+        setLayout(layoutData)
+        setGuests(guestsData.items || [])
+      } catch (err: any) {
+        console.error("Error loading event data:", err)
+        setError(err?.response?.data?.detail || err?.message || "Failed to load event data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [eventId])
+
+  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       const container = document.getElementById("seating-container")
@@ -54,18 +102,69 @@ export function SeatingView() {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  const filteredGuests = mockGuests.filter(
+  const filteredGuests = guests.filter(
     (guest) =>
-      guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guest.dietary.some((diet) => diet.toLowerCase().includes(searchTerm.toLowerCase())),
+      guest.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guest.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guest.tags?.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading seating view...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <Link to="/vendor/events">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Events
+            </Button>
+          </Link>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!event || !layout) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-gray-600">No event data available</p>
+          <Link to="/vendor/events" className="text-blue-600 hover:underline mt-2 inline-block">
+            Go to Events
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{eventData.name}</h1>
-          <p className="text-gray-600">Seating View • {eventData.venue}</p>
+        <div className="flex items-center space-x-4">
+          <Link to="/vendor/events">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{event.name}</h1>
+            <p className="text-gray-600">Seating View • {event.venue || event.address || "Unknown Venue"}</p>
+          </div>
         </div>
         <Button variant="outline" size="sm">
           <Bell className="h-4 w-4 mr-2" />
@@ -94,7 +193,7 @@ export function SeatingView() {
             </div>
           </div>
 
-          <div id="seating-container" className="border border-gray-200 rounded-lg overflow-hidden">
+          <div id="seating-container" className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
             <Stage width={stageSize.width} height={stageSize.height}>
               <Layer>
                 {/* Grid background */}
@@ -109,36 +208,59 @@ export function SeatingView() {
                       stroke="#f0f0f0"
                       strokeWidth={0.5}
                     />
-                  )),
+                  ))
                 )}
 
-                {/* Round Tables */}
-                <Circle x={150} y={150} radius={40} fill="#22c55e" stroke="#16a34a" strokeWidth={2} />
-                <Text x={135} y={145} text="Table 1" fontSize={12} fill="white" />
+                {/* Render layout elements */}
+                {layout.elements.map((element) => {
+                  const hasGuests = (element.assignedGuests?.length || 0) > 0
+                  const fillColor = hasGuests ? "#22c55e" : "#6b7280"
+                  const isVip = element.type?.toLowerCase().includes("vip")
+                  const vipColor = "#3b82f6"
+                  
+                  if (element.config?.shape === "circle" || element.type === "round-table") {
+                    return (
+                      <Circle
+                        key={element.id}
+                        x={element.x + element.width / 2}
+                        y={element.y + element.height / 2}
+                        radius={element.radius || element.width / 2}
+                        fill={isVip ? vipColor : fillColor}
+                        stroke={isVip ? "#2563eb" : "#4b5563"}
+                        strokeWidth={2}
+                      />
+                    )
+                  } else {
+                    return (
+                      <Rect
+                        key={element.id}
+                        x={element.x}
+                        y={element.y}
+                        width={element.width}
+                        height={element.height}
+                        fill={isVip ? vipColor : fillColor}
+                        stroke={isVip ? "#2563eb" : "#4b5563"}
+                        strokeWidth={2}
+                        cornerRadius={8}
+                      />
+                    )
+                  }
+                })}
 
-                <Circle x={300} y={150} radius={40} fill="#6b7280" stroke="#4b5563" strokeWidth={2} />
-                <Text x={285} y={145} text="Table 2" fontSize={12} fill="white" />
-
-                <Circle x={450} y={150} radius={40} fill="#22c55e" stroke="#16a34a" strokeWidth={2} />
-                <Text x={435} y={145} text="Table 3" fontSize={12} fill="white" />
-
-                {/* Rectangular Tables */}
-                <Rect x={100} y={300} width={100} height={60} fill="#6b7280" stroke="#4b5563" strokeWidth={2} rx={5} />
-                <Text x={135} y={325} text="Table 4" fontSize={12} fill="white" />
-
-                <Rect x={250} y={300} width={100} height={60} fill="#22c55e" stroke="#16a34a" strokeWidth={2} rx={5} />
-                <Text x={285} y={325} text="Table 5" fontSize={12} fill="white" />
-
-                {/* VIP Tables */}
-                <Rect x={400} y={300} width={120} height={80} fill="#3b82f6" stroke="#2563eb" strokeWidth={2} rx={10} />
-                <Text x={445} y={335} text="VIP 1" fontSize={14} fill="white" />
-
-                <Rect x={550} y={300} width={120} height={80} fill="#3b82f6" stroke="#2563eb" strokeWidth={2} rx={10} />
-                <Text x={595} y={335} text="VIP 2" fontSize={14} fill="white" />
-
-                {/* Stage */}
-                <Rect x={200} y={50} width={200} height={40} fill="#1f2937" stroke="#111827" strokeWidth={2} rx={5} />
-                <Text x={285} y={65} text="STAGE" fontSize={16} fill="white" />
+                {/* Element labels */}
+                {layout.elements.map((element) => (
+                  <Text
+                    key={`text-${element.id}`}
+                    x={element.x}
+                    y={element.y + element.height / 2 - 6}
+                    width={element.width}
+                    text={element.name || element.type}
+                    fontSize={12}
+                    fontFamily="Arial"
+                    fill="white"
+                    align="center"
+                  />
+                ))}
               </Layer>
             </Stage>
           </div>
@@ -152,6 +274,7 @@ export function SeatingView() {
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
+                label=""
                 placeholder="Search guests..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -165,24 +288,22 @@ export function SeatingView() {
                   className="p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
                   onClick={() => setSelectedGuest(guest)}
                 >
-                  <p className="font-medium text-sm">{guest.name}</p>
-                  <p className="text-xs text-gray-500">{guest.table}</p>
-                  <div className="flex items-center space-x-1 mt-1">
-                    {guest.dietary.length > 0 && (
-                      <div className="flex items-center">
-                        <Utensils className="h-3 w-3 text-orange-500 mr-1" />
-                        <span className="text-xs text-orange-600">{guest.dietary.join(", ")}</span>
-                      </div>
-                    )}
-                    {guest.accessibility.length > 0 && (
-                      <div className="flex items-center">
-                        <Accessibility className="h-3 w-3 text-blue-500 mr-1" />
-                        <span className="text-xs text-blue-600">{guest.accessibility.join(", ")}</span>
-                      </div>
-                    )}
-                  </div>
+                  <p className="font-medium text-sm">{guest.name || "No name"}</p>
+                  <p className="text-xs text-gray-500">{guest.email || guest.seatId || "No details"}</p>
+                  {guest.tags && guest.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {guest.tags.map((tag, idx) => (
+                        <span key={idx} className="text-xs bg-blue-100 text-blue-600 px-1 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
+              {filteredGuests.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No guests found</p>
+              )}
             </div>
           </div>
 
@@ -191,34 +312,41 @@ export function SeatingView() {
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Guest Details</h3>
               <div className="space-y-2">
-                <p className="font-medium">{selectedGuest.name}</p>
-                <p className="text-sm text-gray-600">Assigned to: {selectedGuest.table}</p>
-                {selectedGuest.dietary.length > 0 && (
-                  <div className="flex items-center space-x-1">
-                    <Utensils className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm">Dietary: {selectedGuest.dietary.join(", ")}</span>
-                  </div>
-                )}
-                {selectedGuest.accessibility.length > 0 && (
-                  <div className="flex items-center space-x-1">
-                    <Accessibility className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm">Accessibility: {selectedGuest.accessibility.join(", ")}</span>
+                <p className="font-medium">{selectedGuest.name || "No name"}</p>
+                <p className="text-sm text-gray-600">{selectedGuest.email || "No email"}</p>
+                {selectedGuest.phone && <p className="text-sm text-gray-600">{selectedGuest.phone}</p>}
+                {selectedGuest.seatId && <p className="text-sm text-gray-600">Seat: {selectedGuest.seatId}</p>}
+                {selectedGuest.tags && selectedGuest.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedGuest.tags.map((tag, idx) => (
+                      <span key={idx} className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Notifications */}
+          {/* Quick Stats */}
           <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Live Updates</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Stats</h3>
             <div className="space-y-3">
-              {notifications.map((notification) => (
-                <div key={notification.id} className="p-2 bg-gray-50 rounded text-sm">
-                  <p className="text-gray-900">{notification.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                </div>
-              ))}
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Total Guests</span>
+                <span className="font-medium">{guests.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Total Elements</span>
+                <span className="font-medium">{layout.elements.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Assigned Seats</span>
+                <span className="font-medium">
+                  {layout.elements.reduce((sum, el) => sum + (el.assignedGuests?.length || 0), 0)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -226,3 +354,5 @@ export function SeatingView() {
     </div>
   )
 }
+
+export { SeatingView }

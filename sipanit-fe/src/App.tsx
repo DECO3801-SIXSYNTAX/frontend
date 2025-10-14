@@ -24,15 +24,23 @@ function App() {
       <Route path="/auth/sign-in" element={<SignIn />} />
       <Route path="/auth/sign-up" element={<SignUp onBackToSignIn={() => {}} />} />
       <Route path="/auth/reset" element={<ResetPasswordPage />} />
+      
+      {/* Vendor Dashboard */}
       <Route path="/vendor" element={<DashboardLayout />}>
         <Route index element={<VendorDashboard />} />
         <Route path="events" element={<EventList />} />
-        <Route path="seating/:eventId" element={<SeatingView />} />
+        {/* Fix: Both routes for seating view */}
+        <Route path="seating" element={<SeatingView />} />  {/* For /vendor/seating */}
+        <Route path="seating/:eventId" element={<SeatingView />} />  {/* For /vendor/seating/:eventId */}
       </Route>
+      
+      {/* Kiosk Routes */}
       <Route path="/kiosk" element={<Welcome />} />
       <Route path="/kiosk/qr" element={<QrScan />} />
       <Route path="/kiosk/verify" element={<Verify />} />
       <Route path="/kiosk/events/:eventId/map" element={<SeatView />} />
+      
+      {/* Admin & Planner Routes */}
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/planner/dashboard" element={<PlannerDashboard />} />
     </Routes>
