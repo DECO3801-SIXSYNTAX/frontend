@@ -1,41 +1,25 @@
-export const AUTH_TOKEN_KEY = 'authAccessToken';
-export const AUTH_REFRESH_KEY = 'authRefreshToken';
 export const AUTH_ENABLED = String(import.meta.env.VITE_AUTH_ENABLED || 'false') === 'true';
 export const AUTH_LOGIN_PATH = String(import.meta.env.VITE_AUTH_LOGIN_PATH || '/api/auth/token/');
 export const AUTH_REFRESH_PATH = String(import.meta.env.VITE_AUTH_REFRESH_PATH || '/api/auth/token/refresh/');
 
+// In-memory token store (no localStorage/sessionStorage)
+let ACCESS_TOKEN: string | null = null;
+let REFRESH_TOKEN: string | null = null;
+
 export function getAuthToken(): string | null {
-  try {
-    return localStorage.getItem(AUTH_TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return ACCESS_TOKEN;
 }
 
 export function setAuthToken(token: string | null) {
-  try {
-    if (!token) localStorage.removeItem(AUTH_TOKEN_KEY);
-    else localStorage.setItem(AUTH_TOKEN_KEY, token);
-  } catch {
-    // ignore
-  }
+  ACCESS_TOKEN = token ?? null;
 }
 
 export function getRefreshToken(): string | null {
-  try {
-    return localStorage.getItem(AUTH_REFRESH_KEY);
-  } catch {
-    return null;
-  }
+  return REFRESH_TOKEN;
 }
 
 export function setRefreshToken(token: string | null) {
-  try {
-    if (!token) localStorage.removeItem(AUTH_REFRESH_KEY);
-    else localStorage.setItem(AUTH_REFRESH_KEY, token);
-  } catch {
-    // ignore
-  }
+  REFRESH_TOKEN = token ?? null;
 }
 
 export function isAuthenticated(): boolean {
@@ -83,10 +67,6 @@ export function isAdmin(): boolean {
 }
 
 export function signOut() {
-  try {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_REFRESH_KEY);
-  } catch {
-    // ignore
-  }
+  ACCESS_TOKEN = null;
+  REFRESH_TOKEN = null;
 }

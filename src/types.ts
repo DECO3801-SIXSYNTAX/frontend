@@ -13,7 +13,7 @@ export type UserRole = "Admin" | "Planner" | "Vendor" | "Guest";
 export type UserStatus = "Active" | "Suspended";
 
 export interface UserItem {
-  id: number;
+  id: string; // UUID from backend
   name: string;
   email: string;
   role: UserRole;

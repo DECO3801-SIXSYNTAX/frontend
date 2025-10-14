@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '@/lib/api';
 import { setAuthToken, setRefreshToken, AUTH_LOGIN_PATH } from '@/lib/auth';
+import { firebaseSignIn } from '@/lib/firebase';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -16,6 +17,15 @@ export default function Login() {
     setError(null);
     try {
       // Adjust endpoint to backend JWT: typically /api/auth/token/
+      const useFirebase = String(import.meta.env.VITE_USE_FIREBASE || 'false') === 'true'
+
+      if (useFirebase) {
+        // Firebase Auth path: email/password login; no tokens stored in localStorage
+        await firebaseSignIn(username, password)
+        navigate('/admin')
+        return
+      }
+
       const url = (() => {
         if (AUTH_LOGIN_PATH.startsWith('http')) return AUTH_LOGIN_PATH;
         const base = new URL(API_BASE);

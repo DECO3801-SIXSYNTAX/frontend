@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import type { EventItem, UserItem } from "@/types";
 import { api } from "@/lib/api";
@@ -13,6 +12,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     api.listEvents().then(setEvents).catch(()=>{});
     api.listUsers().then(setUsers).catch(()=>{});
+    api.listRecentActivity({ limit: 5 })
+      .then(setActivity)
+      .catch(() => setActivity(["Unable to load recent activity. You may not have permission or the server is unreachable."]));
   }, []);
 
   return (

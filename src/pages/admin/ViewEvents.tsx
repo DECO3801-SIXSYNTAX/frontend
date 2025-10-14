@@ -31,7 +31,7 @@ export default function ViewEvents() {
         <div className="flex items-center gap-3">
           <select 
             value={status} 
-            onChange={e=>setStatus(e.target.value as any)} 
+            onChange={e=>setStatus(e.target.value as ("All" | EventStatus))} 
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {filters.map(s => <option key={s}>{s}</option>)}
@@ -69,7 +69,7 @@ export default function ViewEvents() {
                   <Td className="text-slate-700">{e.owner}</Td>
                   <Td>
                     <Link 
-                      to={`/admin/events/${(e as any).slug ?? e.id}`} 
+                      to={`/admin/events/${('slug' in e && (e as any).slug) ? (e as any).slug : e.id}`} 
                       className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
                     >
                       View

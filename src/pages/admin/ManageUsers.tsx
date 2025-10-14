@@ -13,7 +13,7 @@ export default function ManageUsers() {
   const [roleFilter, setRoleFilter] = useState<"All" | UserRole>("All");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserItem | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function ManageUsers() {
     [users, roleFilter]
   );
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelectedIds(next);
@@ -49,7 +49,7 @@ export default function ManageUsers() {
         <div className="flex items-center gap-3">
           <select
             value={roleFilter}
-            onChange={e => setRoleFilter(e.target.value as any)}
+            onChange={e => setRoleFilter(e.target.value as ("All" | UserRole))}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {["All", "Admin", "Planner", "Vendor", "Guest"].map(r => (
