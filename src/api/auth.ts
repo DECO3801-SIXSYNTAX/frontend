@@ -1,8 +1,9 @@
+//src\api\auth.ts
 import axios from "axios";
 import { LoginPayload, User, SignUpPayload } from "../services/AuthService";
+import { DashboardService } from "../services/DashboardService";
 
 const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
-const DASHBOARD_API_URL = process.env.REACT_APP_DASHBOARD_API_URL || "http://localhost:3002";
 
 // Function to generate UUID v4
 function generateUUID(): string {
@@ -36,7 +37,7 @@ export async function apiCreateUser(userData: SignUpPayload): Promise<User> {
   
   console.log('Creating user with data:', newUserData);
   
-  const res = await axios.post<User>(`${API_URL}/users`, newUserData);
+  const res = await axios.post<User>(`${API_URL}/api/auth/register`, newUserData);
   return res.data;
 }
 
@@ -75,20 +76,21 @@ export interface GoogleAuthResponse {
 
 // Mock Google authentication function for development (only used when Django is completely unavailable)
 async function mockGoogleAuth(idToken: string, role?: string): Promise<GoogleAuthResponse> {
-  console.log('Using mock Google authentication with json-server');
+  console.log('Using mock Google authentication with Firebase');
 
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Create or get existing user from json-server (not Django)
+  // Create or get existing user from Firebase
   try {
-    const response = await axios.get<User[]>(`${DASHBOARD_API_URL}/users`);
-    const users = response.data;
+    const dashboardService = new DashboardService();
+    const users = await dashboardService.getUsers();
     let user = users.find(u => u.email === 'googleuser@gmail.com');
 
     if (!user) {
-      // Create new Google user in json-server
-      const newUserData: User = {
+      // For mock authentication, create a default user object
+      // In real implementation, Firebase Auth would handle this
+      user = {
         id: generateUUID(),
         email: 'googleuser@gmail.com',
         password: 'oauth-mock',
@@ -99,9 +101,6 @@ async function mockGoogleAuth(idToken: string, role?: string): Promise<GoogleAut
         experience: '3+ years',
         specialty: 'Digital Events'
       };
-
-      const createResponse = await axios.post<User>(`${DASHBOARD_API_URL}/users`, newUserData);
-      user = createResponse.data;
     }
 
     // Generate mock JWT tokens

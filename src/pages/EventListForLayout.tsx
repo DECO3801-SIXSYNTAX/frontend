@@ -10,41 +10,45 @@ import {
   ArrowLeft,
   Eye,
   Edit,
-  X
+  X,
+  UserPlus,
+  Mail
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import Layout from '../components/layout/Layout';
-import axios from 'axios';
-
-const DASHBOARD_API_URL = process.env.REACT_APP_DASHBOARD_API_URL || "http://localhost:3002";
-
-interface FloorPlan {
-  id?: string;
-  eventId?: string;
-  canvasSize: { width: number; height: number };
-  pixelsPerMeter: number;
-  elements: any[];
-  roomBoundary: any;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { FloorPlanService, FloorPlan } from '../services/FloorPlanService';
 
 const EventListForLayout: React.FC = () => {
   const { events, setCurrentPage } = useDashboard();
   const [searchQuery, setSearchQuery] = useState('');
-  const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [viewingLayout, setViewingLayout] = useState<string | null>(null);
+  const [inviteVendorModal, setInviteVendorModal] = useState<string | null>(null);
+  const [vendorEmail, setVendorEmail] = useState('');
+
+  const floorPlanService = new FloorPlanService();
+  const [floorPlanStatus, setFloorPlanStatus] = useState<{[eventId: string]: boolean}>({});
 
   useEffect(() => {
-    loadFloorPlans();
-  }, []);
+    checkFloorPlans();
+  }, [events]);
 
-  const loadFloorPlans = async () => {
+  const checkFloorPlans = async () => {
     try {
-      const response = await axios.get<FloorPlan[]>(`${DASHBOARD_API_URL}/floorplans`);
-      setFloorPlans(response.data || []);
+      const status: {[eventId: string]: boolean} = {};
+
+      // Check each event for floor plan
+      for (const event of events) {
+        try {
+          const plan = await floorPlanService.getFloorPlanByEventId(event.id);
+          status[event.id] = plan !== null;
+        } catch (error) {
+          status[event.id] = false;
+        }
+      }
+
+      setFloorPlanStatus(status);
     } catch (error) {
-      console.error('Error loading floor plans:', error);
+      console.error('Error checking floor plans:', error);
     }
   };
 
@@ -54,13 +58,13 @@ const EventListForLayout: React.FC = () => {
   );
 
   const hasFloorPlan = (eventId: string) => {
-    return floorPlans.some(plan => plan.eventId === eventId);
+    return floorPlanStatus[eventId] || false;
   };
 
   const handleEventSelect = (eventId: string) => {
     if (hasFloorPlan(eventId)) {
-      // Show preview modal
-      setViewingLayout(eventId);
+      // Navigate to view layout page
+      setCurrentPage(`view-layout-${eventId}`);
     } else {
       // Navigate to layout editor with the selected event
       setCurrentPage(`layout-editor-${eventId}`);
@@ -69,6 +73,25 @@ const EventListForLayout: React.FC = () => {
 
   const handleEditLayout = (eventId: string) => {
     setCurrentPage(`layout-editor-${eventId}`);
+  };
+
+  const handleViewLayout = (eventId: string) => {
+    setCurrentPage(`view-layout-${eventId}`);
+  };
+
+  const handleInviteVendor = async () => {
+    if (!vendorEmail.trim() || !inviteVendorModal) return;
+
+    try {
+      // Here you would typically send an invitation email
+      // For now, we'll just show a success message
+      alert(`Invitation sent to ${vendorEmail} for event access!`);
+      setInviteVendorModal(null);
+      setVendorEmail('');
+    } catch (error) {
+      console.error('Error inviting vendor:', error);
+      alert('Failed to send invitation');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -173,14 +196,30 @@ const EventListForLayout: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center"
-                    >
-                      <LayoutIcon className="w-4 h-4 mr-1" />
-                      {hasFloorPlan(event.id) ? 'View Layout' : 'Design Layout'}
-                    </motion.button>
+                    <div className="flex items-center space-x-2">
+                      {hasFloorPlan(event.id) && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInviteVendorModal(event.id);
+                          }}
+                          className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center"
+                        >
+                          <UserPlus className="w-4 h-4 mr-1" />
+                          Invite
+                        </motion.button>
+                      )}
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center"
+                      >
+                        <LayoutIcon className="w-4 h-4 mr-1" />
+                        {hasFloorPlan(event.id) ? 'View' : 'Design'}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -272,6 +311,92 @@ const EventListForLayout: React.FC = () => {
                     </motion.button>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Invite Vendor Modal */}
+        {inviteVendorModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setInviteVendorModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <UserPlus className="w-6 h-6" />
+                    <div>
+                      <h2 className="text-xl font-bold">Invite Vendor</h2>
+                      <p className="text-green-100 text-sm mt-1">
+                        {events.find(e => e.id === inviteVendorModal)?.name}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setInviteVendorModal(null)}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-4">
+                <p className="text-gray-600 text-sm">
+                  Invite a vendor to view this event's layout. They will have read-only access to the floor plan.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vendor Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={vendorEmail}
+                      onChange={(e) => setVendorEmail(e.target.value)}
+                      placeholder="vendor@example.com"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-blue-800 text-sm">
+                    <strong>Note:</strong> Vendors can only view layouts, not edit them.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-gray-200 flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setInviteVendorModal(null)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleInviteVendor}
+                  disabled={!vendorEmail.trim()}
+                  className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Send Invitation
+                </button>
               </div>
             </motion.div>
           </motion.div>

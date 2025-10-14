@@ -150,16 +150,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setSettings(updatedSettings);
     localStorage.setItem('themeSettings', JSON.stringify(updatedSettings));
 
-    // Also update db.json for persistence
-    fetch(`${process.env.REACT_APP_DASHBOARD_API_URL}/appSettings`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ appearance: updatedSettings }),
-    }).catch(error => {
-      console.error('Failed to save settings to server:', error);
-    });
+    // Note: Theme settings are persisted in localStorage only
+    // For cloud sync, use the SettingsService in AppSettings page
   };
 
   const resetToDefaults = () => {

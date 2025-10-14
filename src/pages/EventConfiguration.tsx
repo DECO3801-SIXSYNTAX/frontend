@@ -29,55 +29,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import AddMemberModal from '../components/modals/AddMemberModal';
 import AddVersionNoteModal from '../components/modals/AddVersionNoteModal';
-
-interface EventConfig {
-  id: string;
-  eventId: string;
-  branding: {
-    logo?: string;
-    primaryColor: string;
-    secondaryColor: string;
-    theme: string;
-  };
-  qrCodes: {
-    guestCheckin: boolean;
-    seatLookup: boolean;
-    generatedAt?: string;
-  };
-  collaboration: {
-    members: Array<{
-      id: string;
-      name: string;
-      email: string;
-      role: 'admin' | 'planner' | 'vendor' | 'viewer' | 'editor';
-      status?: 'online' | 'away' | 'offline';
-      permissions?: {
-        editLayout: boolean;
-        manageGuests: boolean;
-        exportData: boolean;
-      };
-      addedAt?: string;
-      addedBy?: string;
-    }>;
-  };
-  versionHistory: {
-    versions: Array<{
-      id: string;
-      version: string;
-      status: 'current' | 'draft' | 'published' | 'archived';
-      description: string;
-      timestamp: string;
-      createdBy: string;
-      notes?: Array<{
-        id: string;
-        note: string;
-        createdAt: string;
-        createdBy: string;
-        version: string;
-      }>;
-    }>;
-  };
-}
+import { EventConfigService, EventConfig } from '../services/EventConfigService';
 
 interface EventConfigurationProps {
   eventId: string;
@@ -96,6 +48,9 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
   const qrPreviewRef = useRef<HTMLDivElement>(null);
+
+  // Initialize EventConfigService
+  const configService = new EventConfigService();
 
   const tabs = [
     { id: 'general', label: 'General Settings', icon: FileText },
@@ -136,44 +91,41 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
         setEvent(foundEvent);
       }
 
-      // Load event configuration
-      const response = await fetch(`${process.env.REACT_APP_DASHBOARD_API_URL || 'http://localhost:3002'}/eventConfigs?eventId=${eventId}`);
-      if (response.ok) {
-        const configs = await response.json();
-        if (configs.length > 0) {
-          setConfig(configs[0]);
-        } else {
-          // Create default config
-          const defaultConfig: EventConfig = {
-            id: `config-${eventId}`,
-            eventId,
-            branding: {
-              primaryColor: '#6366f1',
-              secondaryColor: '#8b5cf6',
-              theme: 'Modern Corporate'
-            },
-            qrCodes: {
-              guestCheckin: true,
-              seatLookup: false
-            },
-            collaboration: {
-              members: []
-            },
-            versionHistory: {
-              versions: [{
-                id: '1',
-                version: 'v1.0',
-                status: 'current',
-                description: 'Initial version',
-                timestamp: new Date().toISOString(),
-                createdBy: 'System',
-                notes: []
-              }]
-            }
-          };
-          setConfig(defaultConfig);
-          await saveConfig(defaultConfig);
-        }
+      // Load event configuration from Firebase
+      const existingConfig = await configService.getEventConfigByEventId(eventId);
+
+      if (existingConfig) {
+        setConfig(existingConfig);
+      } else {
+        // Create default config
+        const defaultConfig: EventConfig = {
+          eventId,
+          branding: {
+            primaryColor: '#6366f1',
+            secondaryColor: '#8b5cf6',
+            theme: 'Modern Corporate'
+          },
+          qrCodes: {
+            guestCheckin: true,
+            seatLookup: false
+          },
+          collaboration: {
+            members: []
+          },
+          versionHistory: {
+            versions: [{
+              id: '1',
+              version: 'v1.0',
+              status: 'current',
+              description: 'Initial version',
+              timestamp: new Date().toISOString(),
+              createdBy: 'System',
+              notes: []
+            }]
+          }
+        };
+        const savedConfig = await configService.saveEventConfig(defaultConfig);
+        setConfig(savedConfig);
       }
     } catch (error) {
       console.error('Error loading event configuration:', error);
@@ -185,15 +137,8 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
   const saveConfig = async (newConfig: EventConfig) => {
     setIsSaving(true);
     try {
-      const response = await fetch(`${process.env.REACT_APP_DASHBOARD_API_URL || 'http://localhost:3002'}/eventConfigs/${newConfig.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newConfig)
-      });
-
-      if (response.ok) {
-        setConfig(newConfig);
-      }
+      const savedConfig = await configService.saveEventConfig(newConfig);
+      setConfig(savedConfig);
     } catch (error) {
       console.error('Error saving configuration:', error);
     } finally {

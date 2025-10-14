@@ -11,6 +11,7 @@ import EventSettings from "./pages/EventSettings";
 import EventConfiguration from "./pages/EventConfiguration";
 import LayoutEditor from "./pages/LayoutEditor";
 import EventListForLayout from "./pages/EventListForLayout";
+import ViewLayout from "./pages/ViewLayout";
 import Layout from "./components/layout/Layout";
 import { DashboardProvider, useDashboard } from "./contexts/DashboardContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -65,6 +66,11 @@ function AppContent() {
       if (currentPage.startsWith('layout-editor-')) {
         const eventId = currentPage.replace('layout-editor-', '');
         return <LayoutEditor eventId={eventId} />;
+      }
+      // Handle dynamic view layout pages
+      if (currentPage.startsWith('view-layout-')) {
+        const eventId = currentPage.replace('view-layout-', '');
+        return <ViewLayout eventId={eventId} />;
       }
       return <SignIn />;
   }

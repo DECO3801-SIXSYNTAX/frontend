@@ -32,13 +32,13 @@ import {
   Sparkles,
   Ruler,
   Settings,
-  Maximize
+  Maximize,
+  MoreVertical,
+  UserPlus
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import Layout from '../components/layout/Layout';
-import axios from 'axios';
-
-const DASHBOARD_API_URL = process.env.REACT_APP_DASHBOARD_API_URL || "http://localhost:3002";
+import { FloorPlanService } from '../services/FloorPlanService';
 
 // Configuration-based element types with realistic dimensions
 interface ElementConfig {
@@ -290,12 +290,26 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGuestFilter, setSelectedGuestFilter] = useState('all');
+  const [activeGuestDropdown, setActiveGuestDropdown] = useState<string | null>(null);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [guestForm, setGuestForm] = useState({
+    name: '',
+    email: '',
+    role: 'Guest' as Guest['role'],
+    dietaryRestrictions: '',
+    accessibilityNeeds: ''
+  });
+  const [assigningGuestId, setAssigningGuestId] = useState<string | null>(null);
 
   // Collaboration state
   const [onlineUsers] = useState([
     { id: 'user1', name: 'Alice Chen', avatar: '', color: '#EF4444' },
     { id: 'user2', name: 'Bob Smith', avatar: '', color: '#10B981' }
   ]);
+
+  // Initialize FloorPlanService
+  const floorPlanService = new FloorPlanService();
 
   // Load floor plan on mount
   useEffect(() => {
@@ -306,21 +320,36 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
 
   const loadFloorPlan = async () => {
     try {
-      const response = await axios.get<FloorPlan[]>(`${DASHBOARD_API_URL}/floorplans`);
-      if (response.data && response.data.length > 0) {
-        // Find floor plan for this specific event
-        const eventPlan = response.data.find(plan => plan.eventId === eventId);
-        if (eventPlan) {
-          setFloorPlanId(eventPlan.id || null);
-          setCanvasSize(eventPlan.canvasSize);
-          setTempCanvasSize(eventPlan.canvasSize);
-          setPixelsPerMeter(eventPlan.pixelsPerMeter);
-          setLayoutElements(eventPlan.elements);
-          setRoomBoundary(eventPlan.roomBoundary);
-          console.log('Loaded existing floor plan for event:', eventId);
-        } else {
-          console.log('No existing floor plan found for event:', eventId);
-        }
+      if (!eventId) return;
+
+      const eventPlan = await floorPlanService.getFloorPlanByEventId(eventId);
+      if (eventPlan) {
+        setFloorPlanId(eventPlan.id || null);
+        setCanvasSize(eventPlan.canvasSize);
+        setTempCanvasSize(eventPlan.canvasSize);
+        setPixelsPerMeter(eventPlan.pixelsPerMeter);
+
+        // Rehydrate elements with icon components
+        const rehydratedElements = eventPlan.elements.map((element: any) => {
+          // Find the original config by id to get the icon
+          const originalConfig = ELEMENT_CONFIGS.find(c => c.id === element.config.id);
+          if (originalConfig) {
+            return {
+              ...element,
+              config: {
+                ...element.config,
+                icon: originalConfig.icon
+              }
+            };
+          }
+          return element;
+        });
+
+        setLayoutElements(rehydratedElements);
+        setRoomBoundary(eventPlan.roomBoundary);
+        console.log('Loaded existing floor plan for event:', eventId);
+      } else {
+        console.log('No existing floor plan found for event:', eventId);
       }
     } catch (error) {
       console.error('Error loading floor plan:', error);
@@ -330,31 +359,34 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
   const saveFloorPlan = async () => {
     setIsSaving(true);
     try {
-      const floorPlan: FloorPlan = {
-        eventId: eventId || 'event-1',
+      if (!eventId) {
+        alert('No event ID provided. Cannot save floor plan.');
+        return;
+      }
+
+      // Serialize elements for Firebase (remove icon component)
+      const serializedElements = layoutElements.map(element => {
+        const { config, ...rest } = element;
+        const { icon, ...serializableConfig } = config;
+        return {
+          ...rest,
+          config: serializableConfig
+        };
+      });
+
+      const floorPlan = {
+        eventId: eventId,
         canvasSize,
         pixelsPerMeter,
-        elements: layoutElements,
+        elements: serializedElements,
         roomBoundary,
-        updatedAt: new Date().toISOString()
       };
 
       console.log('Saving floor plan:', floorPlan);
 
-      if (floorPlanId) {
-        await axios.put(`${DASHBOARD_API_URL}/floorplans/${floorPlanId}`, {
-          ...floorPlan,
-          id: floorPlanId
-        });
-        console.log('Floor plan updated successfully');
-      } else {
-        const response = await axios.post<FloorPlan>(`${DASHBOARD_API_URL}/floorplans`, {
-          ...floorPlan,
-          createdAt: new Date().toISOString()
-        });
-        setFloorPlanId(response.data.id || null);
-        console.log('Floor plan created successfully:', response.data);
-      }
+      const savedPlan = await floorPlanService.saveFloorPlan(floorPlan);
+      setFloorPlanId(savedPlan.id || null);
+      console.log('Floor plan saved successfully:', savedPlan);
 
       alert('Floor plan saved successfully!');
 
@@ -362,15 +394,8 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
       setCurrentPage('event-list-for-layout');
     } catch (error: any) {
       console.error('Error saving floor plan:', error);
-      const errorMessage = error.response?.data?.message
-        || error.message
-        || 'Unknown error occurred';
-
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        alert('Failed to save floor plan: Cannot connect to server.\n\nPlease ensure json-server is running:\nnpm run server');
-      } else {
-        alert(`Failed to save floor plan: ${errorMessage}`);
-      }
+      const errorMessage = error.message || 'Unknown error occurred';
+      alert(`Failed to save floor plan: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
@@ -428,6 +453,37 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
     }
   }, [selectedId]);
 
+  // Constrain stage position to keep canvas in view
+  const constrainStagePosition = (pos: { x: number; y: number }, scale: number): { x: number; y: number } => {
+    const container = containerRef.current;
+    if (!container) return pos;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const scaledCanvasWidth = canvasSize.width * scale;
+    const scaledCanvasHeight = canvasSize.height * scale;
+
+    // Minimum visible area (at least 20% of canvas should be visible)
+    const minVisibleWidth = scaledCanvasWidth * 0.27;
+    const minVisibleHeight = scaledCanvasHeight * 0.27
+    ;
+
+    let newX = pos.x;
+    let newY = pos.y;
+
+    // Constrain X position
+    const maxX = containerWidth - minVisibleWidth;
+    const minX = -scaledCanvasWidth + minVisibleWidth;
+    newX = Math.max(minX, Math.min(maxX, newX));
+
+    // Constrain Y position
+    const maxY = containerHeight - minVisibleHeight;
+    const minY = -scaledCanvasHeight + minVisibleHeight;
+    newY = Math.max(minY, Math.min(maxY, newY));
+
+    return { x: newX, y: newY };
+  };
+
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const scaleBy = 1.05;
@@ -452,7 +508,8 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
       y: pointer.y - mousePointTo.y * clampedScale
     };
 
-    setStagePosition(newPos);
+    const constrainedPos = constrainStagePosition(newPos, clampedScale);
+    setStagePosition(constrainedPos);
   };
 
   const handleZoom = (direction: 'in' | 'out') => {
@@ -579,6 +636,152 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
     }
   };
 
+  // Check if a point is inside the room boundary polygon
+  const isPointInPolygon = (x: number, y: number, polygon: { x: number; y: number }[]): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
+
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  // Check if element's bounding box is within room boundary
+  const isElementWithinBoundary = (element: LayoutElement, boundary: RoomBoundary): boolean => {
+    if (!boundary || !boundary.closed || boundary.vertices.length < 3) {
+      return true; // No boundary constraint
+    }
+
+    // Check all corners of the element
+    const corners = [
+      { x: element.x, y: element.y }, // Top-left
+      { x: element.x + element.width, y: element.y }, // Top-right
+      { x: element.x, y: element.y + element.height }, // Bottom-left
+      { x: element.x + element.width, y: element.y + element.height } // Bottom-right
+    ];
+
+    // For circle elements, check the bounding square
+    if (element.radius) {
+      const radius = element.radius;
+      corners.push(
+        { x: element.x - radius, y: element.y - radius },
+        { x: element.x + radius, y: element.y - radius },
+        { x: element.x - radius, y: element.y + radius },
+        { x: element.x + radius, y: element.y + radius }
+      );
+    }
+
+    // All corners must be inside the boundary
+    return corners.every(corner => isPointInPolygon(corner.x, corner.y, boundary.vertices));
+  };
+
+  // Constrain element position to stay within boundary
+  const constrainToBoundary = (element: LayoutElement, newX: number, newY: number): { x: number; y: number } => {
+    if (!roomBoundary || !roomBoundary.closed || roomBoundary.vertices.length < 3) {
+      return { x: newX, y: newY };
+    }
+
+    const testElement = { ...element, x: newX, y: newY };
+    if (isElementWithinBoundary(testElement, roomBoundary)) {
+      return { x: newX, y: newY };
+    }
+
+    // If out of bounds, keep the old position
+    return { x: element.x, y: element.y };
+  };
+
+  // Guest management functions
+  const openAddGuestModal = () => {
+    setEditingGuest(null);
+    setGuestForm({
+      name: '',
+      email: '',
+      role: 'Guest',
+      dietaryRestrictions: '',
+      accessibilityNeeds: ''
+    });
+    setShowGuestModal(true);
+  };
+
+  const openEditGuestModal = (guest: Guest) => {
+    setEditingGuest(guest);
+    setGuestForm({
+      name: guest.name,
+      email: guest.email,
+      role: guest.role,
+      dietaryRestrictions: guest.dietaryRestrictions.join(', '),
+      accessibilityNeeds: guest.accessibilityNeeds.join(', ')
+    });
+    setShowGuestModal(true);
+    setActiveGuestDropdown(null);
+  };
+
+  const handleSaveGuest = () => {
+    if (!guestForm.name.trim()) return;
+
+    const dietary = guestForm.dietaryRestrictions
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const accessibility = guestForm.accessibilityNeeds
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (editingGuest) {
+      setGuests(guests.map(g =>
+        g.id === editingGuest.id
+          ? { ...g, ...guestForm, dietaryRestrictions: dietary, accessibilityNeeds: accessibility }
+          : g
+      ));
+    } else {
+      const newGuest: Guest = {
+        id: `guest-${Date.now()}`,
+        name: guestForm.name,
+        email: guestForm.email,
+        role: guestForm.role,
+        dietaryRestrictions: dietary,
+        accessibilityNeeds: accessibility
+      };
+      setGuests([...guests, newGuest]);
+    }
+
+    setShowGuestModal(false);
+  };
+
+  const handleDeleteGuest = (guestId: string) => {
+    if (!window.confirm('Are you sure you want to delete this guest?')) return;
+
+    // Remove from all elements
+    setLayoutElements(elements =>
+      elements.map(el => ({
+        ...el,
+        assignedGuests: el.assignedGuests.filter(id => id !== guestId)
+      }))
+    );
+    setGuests(guests.filter(g => g.id !== guestId));
+    setActiveGuestDropdown(null);
+  };
+
+  const handleAssignGuest = (guestId: string, elementId: string) => {
+    // Remove guest from all other elements
+    setLayoutElements(elements =>
+      elements.map(el => ({
+        ...el,
+        assignedGuests: el.id === elementId
+          ? [...el.assignedGuests, guestId]
+          : el.assignedGuests.filter(id => id !== guestId)
+      }))
+    );
+    setAssigningGuestId(null);
+    setActiveGuestDropdown(null);
+  };
+
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          guest.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -633,9 +836,17 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
         draggable={mode === 'edit'}
         onClick={() => mode === 'edit' && setSelectedId(element.id)}
         onDragEnd={(e: any) => {
-          const newX = snapToGrid ? Math.round(e.target.x() / gridSize) * gridSize : e.target.x();
-          const newY = snapToGrid ? Math.round(e.target.y() / gridSize) * gridSize : e.target.y();
+          let newX = snapToGrid ? Math.round(e.target.x() / gridSize) * gridSize : e.target.x();
+          let newY = snapToGrid ? Math.round(e.target.y() / gridSize) * gridSize : e.target.y();
+
+          // Apply boundary constraints
+          const constrained = constrainToBoundary(element, newX, newY);
+          newX = constrained.x;
+          newY = constrained.y;
+
           updateElement(element.id, { x: newX, y: newY });
+          e.target.x(newX);
+          e.target.y(newY);
         }}
         onTransformEnd={(e: any) => {
           const node = e.target;
@@ -845,9 +1056,9 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
             animate={{ x: 0 }}
             exit={{ x: -320 }}
             transition={{ duration: 0.3 }}
-            className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden"
+            className="w-80 bg-white border-r border-gray-200 flex flex-col min-h-0"
           >
-            {/* Sidebar Header */}
+            {/* Sidebar Header - Fixed */}
             <div className="p-4 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
@@ -863,66 +1074,76 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
               </div>
             </div>
 
-            {/* Layout Elements */}
-            <div className="p-4 border-b border-gray-200 flex-shrink-0 overflow-y-auto max-h-96">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Layout Elements</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {ELEMENT_CONFIGS.map(({ id, icon: Icon, label, color, description }) => (
+            {/* Scrollable Content Area */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {/* Layout Elements */}
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Layout Elements</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {ELEMENT_CONFIGS.map(({ id, icon: Icon, label, color, description }) => (
+                    <button
+                      key={id}
+                      onMouseDown={() => handleMouseDown(id)}
+                      onMouseUp={handleMouseUp}
+                      title={description}
+                      className="flex flex-col items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 group cursor-grab active:cursor-grabbing disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      disabled={mode === 'preview'}
+                    >
+                      <Icon className="h-6 w-6 mb-1" style={{ color }} />
+                      <span className="text-xs text-gray-600 text-center leading-tight">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Room Boundary Tool */}
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Room Boundary</h3>
+                <div className="space-y-2">
                   <button
-                    key={id}
-                    onMouseDown={() => handleMouseDown(id)}
-                    onMouseUp={handleMouseUp}
-                    title={description}
-                    className="flex flex-col items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 group cursor-grab active:cursor-grabbing disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    onClick={() => setIsDrawingRoom(!isDrawingRoom)}
                     disabled={mode === 'preview'}
+                    className={`w-full px-3 py-2 text-sm rounded-lg transition-colors ${
+                      isDrawingRoom
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <Icon className="h-6 w-6 mb-1" style={{ color }} />
-                    <span className="text-xs text-gray-600 text-center leading-tight">{label}</span>
+                    {isDrawingRoom ? 'Drawing... (Click to add vertices)' : 'Draw Room Boundary'}
                   </button>
-                ))}
+                  {roomBoundary && (
+                    <button
+                      onClick={() => {
+                        setRoomBoundary(null);
+                        setIsDrawingRoom(false);
+                      }}
+                      className="w-full px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                    >
+                      Clear Boundary
+                    </button>
+                  )}
+                  {isDrawingRoom && roomBoundary && roomBoundary.vertices.length > 2 && (
+                    <p className="text-xs text-gray-500 text-center">
+                      Click near first point to close polygon
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Room Boundary Tool */}
-            <div className="p-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Room Boundary</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setIsDrawingRoom(!isDrawingRoom)}
-                  disabled={mode === 'preview'}
-                  className={`w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-                    isDrawingRoom
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {isDrawingRoom ? 'Drawing... (Click to add vertices)' : 'Draw Room Boundary'}
-                </button>
-                {roomBoundary && (
-                  <button
-                    onClick={() => {
-                      setRoomBoundary(null);
-                      setIsDrawingRoom(false);
-                    }}
-                    className="w-full px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-                  >
-                    Clear Boundary
-                  </button>
-                )}
-                {isDrawingRoom && roomBoundary && roomBoundary.vertices.length > 2 && (
-                  <p className="text-xs text-gray-500 text-center">
-                    Click near first point to close polygon
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Guest Management */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              {/* Guest Management */}
+              <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-gray-900">Guests</h3>
-                  <span className="text-xs text-gray-500">{guests.length} total</span>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">Guests</h3>
+                    <span className="text-xs text-gray-500">{guests.length} total</span>
+                  </div>
+                  <button
+                    onClick={openAddGuestModal}
+                    className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-xs"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    <span>Add Guest</span>
+                  </button>
                 </div>
 
                 {/* Search */}
@@ -938,7 +1159,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 mb-3">
                   {[
                     { id: 'all', label: 'All', count: guests.length },
                     { id: 'vip', label: 'VIP', count: guests.filter(g => g.role === 'VIP').length },
@@ -958,30 +1179,72 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* Guest List */}
-              <div className="flex-1 overflow-y-auto p-4">
+                {/* Guest List */}
                 <div className="space-y-2">
                   {filteredGuests.map(guest => (
                     <div
                       key={guest.id}
-                      className="flex items-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="relative flex items-start p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-xs font-medium text-white mr-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-xs font-medium text-white mr-3 flex-shrink-0">
                         {guest.name.charAt(0)}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 mr-6">
                         <p className="text-sm font-medium text-gray-900 truncate">{guest.name}</p>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex flex-wrap items-center gap-1 mt-1">
                           <span className={`px-1.5 py-0.5 text-xs rounded-full ${
                             guest.role === 'VIP' ? 'bg-yellow-100 text-yellow-800' :
                             guest.role === 'Speaker' ? 'bg-blue-100 text-blue-800' :
+                            guest.role === 'CEO' ? 'bg-purple-100 text-purple-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {guest.role}
                           </span>
+                          {guest.dietaryRestrictions.map((diet, i) => (
+                            <span key={i} className="px-1.5 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800">
+                              {diet}
+                            </span>
+                          ))}
+                          {guest.accessibilityNeeds.map((need, i) => (
+                            <span key={i} className="px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                              {need}
+                            </span>
+                          ))}
                         </div>
+                      </div>
+                      <div className="absolute top-2 right-2">
+                        <button
+                          onClick={() => setActiveGuestDropdown(activeGuestDropdown === guest.id ? null : guest.id)}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                        {activeGuestDropdown === guest.id && (
+                          <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                            <button
+                              onClick={() => {
+                                setAssigningGuestId(guest.id);
+                                setActiveGuestDropdown(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              Assign Seat
+                            </button>
+                            <button
+                              onClick={() => openEditGuestModal(guest)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteGuest(guest.id)}
+                              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1183,6 +1446,13 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
             y={stagePosition.y}
             onWheel={handleWheel}
             draggable={mode === 'edit' && !isDrawingRoom}
+            onDragEnd={(e: any) => {
+              const newPos = { x: e.target.x(), y: e.target.y() };
+              const constrainedPos = constrainStagePosition(newPos, stageScale);
+              setStagePosition(constrainedPos);
+              e.target.x(constrainedPos.x);
+              e.target.y(constrainedPos.y);
+            }}
             onClick={handleStageClick}
             onMouseUp={handleStageMouseUp}
             onMouseMove={handleStageMouseMove}
@@ -1435,6 +1705,153 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
               </div>
             )}
           </div>
+        </motion.div>
+      )}
+
+      {/* Assign Guest Modal */}
+      {assigningGuestId && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setAssigningGuestId(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Assign Guest to Element</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Select an element to assign {guests.find(g => g.id === assigningGuestId)?.name} to:
+            </p>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {layoutElements.map(element => (
+                <button
+                  key={element.id}
+                  onClick={() => handleAssignGuest(assigningGuestId, element.id)}
+                  className="w-full px-4 py-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">{element.name}</p>
+                      <p className="text-xs text-gray-500">{element.config.label}</p>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {element.assignedGuests.length}/{element.capacity}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setAssigningGuestId(null)}
+              className="mt-4 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Add/Edit Guest Modal */}
+      {showGuestModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowGuestModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {editingGuest ? 'Edit Guest' : 'Add New Guest'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={guestForm.name}
+                  onChange={(e) => setGuestForm({ ...guestForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Guest name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={guestForm.email}
+                  onChange={(e) => setGuestForm({ ...guestForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="guest@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={guestForm.role}
+                  onChange={(e) => setGuestForm({ ...guestForm, role: e.target.value as Guest['role'] })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="Guest">Guest</option>
+                  <option value="VIP">VIP</option>
+                  <option value="Speaker">Speaker</option>
+                  <option value="CEO">CEO</option>
+                  <option value="Director">Director</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Employee">Employee</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dietary Restrictions
+                  <span className="text-xs text-gray-500 ml-2">(comma-separated)</span>
+                </label>
+                <input
+                  type="text"
+                  value={guestForm.dietaryRestrictions}
+                  onChange={(e) => setGuestForm({ ...guestForm, dietaryRestrictions: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g., Vegan, Gluten-Free, Halal"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Accessibility Needs
+                  <span className="text-xs text-gray-500 ml-2">(comma-separated)</span>
+                </label>
+                <input
+                  type="text"
+                  value={guestForm.accessibilityNeeds}
+                  onChange={(e) => setGuestForm({ ...guestForm, accessibilityNeeds: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g., Wheelchair, Sign Language, Hearing Aid"
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-3 mt-6">
+              <button
+                onClick={handleSaveGuest}
+                disabled={!guestForm.name.trim()}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {editingGuest ? 'Save Changes' : 'Add Guest'}
+              </button>
+              <button
+                onClick={() => setShowGuestModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </div>

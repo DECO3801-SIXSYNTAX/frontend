@@ -74,8 +74,9 @@ const Navbar: React.FC = () => {
                     {filteredResults.map((event) => (
                       <button
                         key={event.id}
-                        onClick={() => {
-                          setCurrentPage('events-list');
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(`layout-editor-${event.id}`);
                           clearSearch();
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"

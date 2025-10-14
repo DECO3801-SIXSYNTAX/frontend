@@ -448,7 +448,7 @@
     },
     {
       "id": "event-3",
-      "name": "Corporate Team Building",
+      "name": "Corporate Team Buildings",
       "description": "Interactive team building activities and workshops for company employees.",
       "type": "conference",
       "startDate": "2024-10-05",
@@ -461,10 +461,10 @@
       "budget": 15000,
       "dietaryNeeds": 5,
       "accessibilityNeeds": 2,
-      "status": "active",
+      "status": "done",
       "createdBy": "550e8400-e29b-41d4-a716-446655440001",
       "createdAt": "2024-09-12T11:15:00Z",
-      "updatedAt": "2025-09-22T07:58:00.769Z",
+      "updatedAt": "2025-10-13T08:32:21.177Z",
       "tags": [
         "corporate",
         "team-building",
@@ -614,6 +614,17 @@
       "accessibilityNeeds": "none",
       "rsvpStatus": "pending",
       "importedAt": "2025-09-22T05:26:36.304Z"
+    },
+    {
+      "id": "guest-1760367908570",
+      "name": "abc",
+      "email": "a@gmail.com",
+      "phone": "0489298677",
+      "dietaryRestrictions": "Vegetarian",
+      "accessibilityNeeds": "Wheelchair access",
+      "eventId": "event-1",
+      "rsvpStatus": "pending",
+      "importedAt": "2025-10-13T15:05:08.570Z"
     }
   ],
   "teamMembers": [
@@ -728,6 +739,36 @@
       "eventId": "event-3",
       "type": "event",
       "timestamp": "2025-09-22T07:58:00.848Z"
+    },
+    {
+      "id": "a2462904-1b2b-4e26-a20d-fda96adbc747",
+      "userId": "550e8400-e29b-41d4-a716-446655440003",
+      "userName": "Current User",
+      "action": "Updated event",
+      "details": "Corporate Team Building - Updated",
+      "eventId": "event-3",
+      "type": "event",
+      "timestamp": "2025-10-13T06:09:11.579Z"
+    },
+    {
+      "id": "8ee8d3fb-6b76-4d46-9bbd-034d618f5c4b",
+      "userId": "550e8400-e29b-41d4-a716-446655440003",
+      "userName": "Current User",
+      "action": "Updated event",
+      "details": "Corporate Team Building - Updated",
+      "eventId": "event-3",
+      "type": "event",
+      "timestamp": "2025-10-13T06:09:15.029Z"
+    },
+    {
+      "id": "121490f7-fcb6-4834-a4c0-1eb08e52907d",
+      "userId": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "userName": "Current User",
+      "action": "Updated event",
+      "details": "Corporate Team Buildings - Updated",
+      "eventId": "event-3",
+      "type": "event",
+      "timestamp": "2025-10-13T08:32:21.212Z"
     }
   ],
   "invitations": [
@@ -772,6 +813,15 @@
       "code": "SIPANIT-PS366R",
       "createdBy": "16885cb0-59ef-4f67-a0af-19a995310523",
       "expiresAt": "2025-09-29T05:23:08.684Z",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null
+    },
+    {
+      "id": "d91adef6-f038-410c-aed2-6f3fb89faa6a",
+      "code": "SIPANIT-SD8J8F",
+      "createdBy": "16885cb0-59ef-4f67-a0af-19a995310523",
+      "expiresAt": "2025-10-20T08:33:07.973Z",
       "used": false,
       "usedBy": null,
       "usedAt": null
@@ -992,7 +1042,7 @@
       "qrCodes": {
         "guestCheckin": true,
         "seatLookup": false,
-        "generatedAt": "2025-09-23T05:24:12.073Z"
+        "generatedAt": "2025-10-13T09:36:36.449Z"
       },
       "collaboration": {
         "members": [
@@ -1208,7 +1258,6 @@
   ],
   "floorplans": [
     {
-      "id": "aa10",
       "eventId": "event-1",
       "canvasSize": {
         "width": 2000,
@@ -1226,7 +1275,9 @@
           "rotation": 0,
           "capacity": 6,
           "name": "Rectangular Table 1",
-          "assignedGuests": [],
+          "assignedGuests": [
+            "guest-1760367908570"
+          ],
           "config": {
             "id": "table",
             "shape": "rounded-rect",
@@ -1290,8 +1341,8 @@
         {
           "id": "vip-1759731099583",
           "type": "vip",
-          "x": 180,
-          "y": 380,
+          "x": 200,
+          "y": 400,
           "width": 240,
           "height": 160,
           "rotation": 0,
@@ -1343,12 +1394,32 @@
           {
             "x": 300,
             "y": 40
+          },
+          {
+            "x": 720,
+            "y": 100
+          },
+          {
+            "x": 1020,
+            "y": 40
+          },
+          {
+            "x": 920,
+            "y": 620
+          },
+          {
+            "x": 240,
+            "y": 600
+          },
+          {
+            "x": 80,
+            "y": 280
           }
         ],
-        "closed": false
+        "closed": true
       },
-      "updatedAt": "2025-10-06T06:14:11.222Z",
-      "createdAt": "2025-10-06T06:14:11.223Z"
+      "updatedAt": "2025-10-13T14:32:22.488Z",
+      "id": "aa10"
     },
     {
       "id": "9211",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Plus, User, Shield, Settings } from 'lucide-react';
+import { DashboardService } from '../../services/DashboardService';
 
 interface User {
   id: string;
@@ -45,6 +46,9 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [selectedRole, setSelectedRole] = useState<'admin' | 'planner' | 'vendor' | 'viewer' | 'editor'>('viewer');
   const [loading, setLoading] = useState(false);
 
+  // Initialize service
+  const dashboardService = new DashboardService();
+
   const roles = [
     {
       value: 'viewer' as const,
@@ -75,11 +79,8 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.REACT_APP_DASHBOARD_API_URL || 'http://localhost:3002'}/users`);
-      if (response.ok) {
-        const allUsers = await response.json();
-        setUsers(allUsers);
-      }
+      const allUsers = await dashboardService.getUsers();
+      setUsers(allUsers);
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {

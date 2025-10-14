@@ -1,3 +1,4 @@
+//src\pages\SignIn.tsx
 import React, { useEffect, useState } from "react";
 import { AuthService, User } from "../services/AuthService";
 import Input from "../components/Input";
@@ -13,6 +14,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { apiLogin, apiUpdateUser } from "../api/auth";
 import { useDashboard } from "../contexts/DashboardContext";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../config/firebase";
 
 const authService = new AuthService();
 
@@ -118,8 +121,41 @@ export default function SignIn() {
       // For now, use mock authentication to work with the dashboard
       // TODO: Replace with real authentication when backend is ready
       if (email && password) {
+        // Sign in to Firebase to enable Firestore access
+        try {
+          console.log('Attempting Firebase sign-in...');
+          await signInWithEmailAndPassword(auth, email, password);
+          console.log('✓ Firebase sign-in successful');
+        } catch (firebaseError: any) {
+          console.log('Firebase sign-in error:', firebaseError.code, firebaseError.message);
+
+          // If user doesn't exist in Firebase, create them
+          if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
+            try {
+              console.log('Attempting to create Firebase user...');
+              await createUserWithEmailAndPassword(auth, email, password);
+              console.log('✓ Firebase user created successfully');
+            } catch (createError: any) {
+              console.error('Firebase user creation error:', createError.code, createError.message);
+
+              // If creation fails (e.g., user exists but wrong password), show error
+              if (createError.code === 'auth/email-already-in-use') {
+                showMessage('Invalid password for existing account', 'error');
+                return;
+              } else if (createError.code === 'auth/weak-password') {
+                showMessage('Password should be at least 6 characters', 'error');
+                return;
+              } else {
+                throw createError;
+              }
+            }
+          } else {
+            throw firebaseError;
+          }
+        }
+
         const mockUser = {
-          id: 'mock-user-' + Date.now(),
+          id: auth.currentUser?.uid || 'mock-user-' + Date.now(),
           email: email,
           name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
           role: 'planner' as const,
@@ -467,15 +503,34 @@ export default function SignIn() {
                 <div className="text-center text-gray-400 text-sm">or</div>
 
                 <GoogleButton
-                  onSuccess={(user) => {
+                  onSuccess={async (user) => {
                     const userName = user.email
                       .split("@")[0]
                       .replace(/[._]/g, " ")
                       .replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+                    // Sign in to Firebase with email (for Firestore access)
+                    // Use a default password for Google sign-ins
+                    const defaultPassword = 'google-signin-' + user.email;
+                    try {
+                      try {
+                        await signInWithEmailAndPassword(auth, user.email, defaultPassword);
+                      } catch (firebaseError: any) {
+                        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password') {
+                          await createUserWithEmailAndPassword(auth, user.email, defaultPassword);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('Firebase auth error:', err);
+                    }
+
                     showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
-                    // Set user data from Google authentication
-                    setCurrentUser(user);
+                    // Set user data from Google authentication with Firebase UID
+                    setCurrentUser({
+                      ...user,
+                      id: auth.currentUser?.uid || user.id
+                    });
 
                     // 🎬 Ending setelah Google success (opsional)
                     setTimeout(() => setExiting(true), 350);

@@ -1,3 +1,4 @@
+//src\pages\SignUp.tsx
 import React, { useState } from "react";
 import { AuthService, SignUpPayload } from "../services/AuthService";
 import Input from "../components/Input";
@@ -81,8 +82,8 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
       return;
     }
 
-    if (formData.password.length < 6) {
-      showMessage("Password must be at least 6 characters long", "error");
+    if (formData.password.length < 8) {
+      showMessage("Password must be at least 8 characters long", "error");
       return;
     }
 
@@ -123,6 +124,9 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
       } else if (err.message.includes("network")) {
         errorMessage =
           "Connection error. Please check your internet and try again.";
+      } else if (err.message) {
+        // Display the actual error message from the backend
+        errorMessage = err.message;
       }
       showMessage(errorMessage, "error");
     }

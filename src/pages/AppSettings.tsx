@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { SettingsService } from '../services/SettingsService';
 
 interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -41,6 +42,9 @@ const AppSettings: React.FC = () => {
     autoSave: true
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Initialize service
+  const settingsService = new SettingsService();
 
   const themes = [
     { id: 'light', name: 'Light', icon: Sun },
@@ -68,13 +72,8 @@ const AppSettings: React.FC = () => {
 
   const loadSystemSettings = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_DASHBOARD_API_URL || 'http://localhost:3002'}/appSettings`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.system) {
-          setSystemSettings(data.system);
-        }
-      }
+      const settings = await settingsService.getSystemSettings();
+      setSystemSettings(settings);
     } catch (error) {
       console.error('Error loading system settings:', error);
     }
@@ -86,11 +85,7 @@ const AppSettings: React.FC = () => {
       const newSystemSettings = { ...systemSettings, [key]: value };
       setSystemSettings(newSystemSettings);
 
-      const response = await fetch(`${process.env.REACT_APP_DASHBOARD_API_URL || 'http://localhost:3002'}/appSettings`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: newSystemSettings })
-      });
+      await settingsService.updateSystemSettings(newSystemSettings);
     } catch (error) {
       console.error('Error saving system settings:', error);
     } finally {

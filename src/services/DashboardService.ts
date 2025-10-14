@@ -1,92 +1,191 @@
-import axios from 'axios';
+// src/services/DashboardService.ts
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  Timestamp
+} from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Guest, TeamMember, Activity, Invitation, CreateEventForm } from '../types/dashboard';
 
-// Use separate API URL for dashboard operations (json-server)
-const API_URL = process.env.REACT_APP_DASHBOARD_API_URL || 'http://localhost:3002';
-
 export class DashboardService {
+  // Helper to get current user ID
+  private getCurrentUserId(): string {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user is currently signed in');
+    }
+    return user.uid;
+  }
+
+  // Users
+  async getUsers(): Promise<any[]> {
+    try {
+      const usersRef = collection(db, 'users');
+      const snapshot = await getDocs(usersRef);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw new Error('Failed to fetch users');
+    }
+  }
+
   // Events
   async getEvents(): Promise<Event[]> {
     try {
-      const response = await axios.get<Event[]>(`${API_URL}/events`);
-      return response.data;
+      const userId = this.getCurrentUserId();
+      const eventsRef = collection(db, 'events');
+      const q = query(eventsRef, where('createdBy', '==', userId), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+          startDate: data.startDate,
+          endDate: data.endDate,
+        } as Event;
+      });
     } catch (error) {
       console.error('Error fetching events:', error);
       throw new Error('Failed to fetch events');
     }
   }
 
-  async createEvent(eventData: CreateEventForm, userId: string): Promise<Event> {
+  async getEvent(eventId: string): Promise<Event> {
     try {
-      const newEvent: Event = {
-        id: uuidv4(),
+      const eventRef = doc(db, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
+
+      if (!eventDoc.exists()) {
+        throw new Error('Event not found');
+      }
+
+      const data = eventDoc.data();
+      return {
+        id: eventDoc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+        startDate: data.startDate,
+        endDate: data.endDate,
+      } as Event;
+    } catch (error) {
+      console.error('Error fetching event:', error);
+      throw new Error('Failed to fetch event');
+    }
+  }
+
+  async createEvent(eventData: CreateEventForm, userId?: string): Promise<Event> {
+    try {
+      const currentUserId = userId || this.getCurrentUserId();
+
+      const newEvent = {
         ...eventData,
         actualAttendees: 0,
         status: 'draft',
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdBy: currentUserId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
-      const response = await axios.post<Event>(`${API_URL}/events`, newEvent);
+      const eventsRef = collection(db, 'events');
+      const docRef = await addDoc(eventsRef, newEvent);
 
       // Log activity
       await this.logActivity({
-        userId,
-        userName: 'Current User', // This should be replaced with actual user name
+        userId: currentUserId,
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Created event',
         details: eventData.name,
-        eventId: newEvent.id,
+        eventId: docRef.id,
         type: 'event'
       });
 
-      return response.data;
+      // Return the created event
+      return {
+        id: docRef.id,
+        ...newEvent,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Event;
     } catch (error) {
       console.error('Error creating event:', error);
       throw new Error('Failed to create event');
     }
   }
 
-  async updateEvent(eventId: string, updates: Partial<Event>, userId: string): Promise<Event> {
+  async updateEvent(eventId: string, updates: Partial<Event>, userId?: string): Promise<Event> {
     try {
-      const updatedEvent = {
+      const currentUserId = userId || this.getCurrentUserId();
+      const eventRef = doc(db, 'events', eventId);
+
+      const updatedData: any = {
         ...updates,
-        updatedAt: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
       };
 
-      const response = await axios.patch<Event>(`${API_URL}/events/${eventId}`, updatedEvent);
+      // Remove undefined values
+      Object.keys(updatedData).forEach(key =>
+        updatedData[key] === undefined && delete updatedData[key]
+      );
+
+      await updateDoc(eventRef, updatedData);
 
       // Log activity
       await this.logActivity({
-        userId,
-        userName: 'Current User',
+        userId: currentUserId,
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Updated event',
         details: `${updates.name || 'Event'} - Updated`,
         eventId,
         type: 'event'
       });
 
-      return response.data;
+      // Get and return the updated event
+      return await this.getEvent(eventId);
     } catch (error) {
       console.error('Error updating event:', error);
       throw new Error('Failed to update event');
     }
   }
 
-  async deleteEvent(eventId: string, userId: string): Promise<void> {
+  async deleteEvent(eventId: string, userId?: string): Promise<void> {
     try {
-      // Get event details for logging
-      const event = await axios.get<Event>(`${API_URL}/events/${eventId}`);
+      const currentUserId = userId || this.getCurrentUserId();
 
-      await axios.delete(`${API_URL}/events/${eventId}`);
+      // Get event details for logging
+      const event = await this.getEvent(eventId);
+
+      const eventRef = doc(db, 'events', eventId);
+      await deleteDoc(eventRef);
+
+      // Also delete associated guests
+      const guestsRef = collection(db, 'guests');
+      const guestsQuery = query(guestsRef, where('eventId', '==', eventId));
+      const guestsSnapshot = await getDocs(guestsQuery);
+
+      const deletePromises = guestsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
 
       // Log activity
       await this.logActivity({
-        userId,
-        userName: 'Current User',
+        userId: currentUserId,
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Deleted event',
-        details: event.data.name,
+        details: event.name,
         eventId: null,
         type: 'event'
       });
@@ -97,72 +196,158 @@ export class DashboardService {
   }
 
   // Guests
-  async getGuests(): Promise<Guest[]> {
+  async getGuests(eventId?: string): Promise<Guest[]> {
     try {
-      const response = await axios.get<Guest[]>(`${API_URL}/guests`);
-      return response.data;
+      const guestsRef = collection(db, 'guests');
+      let q;
+
+      if (eventId) {
+        q = query(guestsRef, where('eventId', '==', eventId));
+      } else {
+        const userId = this.getCurrentUserId();
+        q = query(guestsRef, where('createdBy', '==', userId));
+      }
+
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          importedAt: data.importedAt?.toDate?.()?.toISOString() || data.importedAt,
+        } as Guest;
+      });
     } catch (error) {
       console.error('Error fetching guests:', error);
       throw new Error('Failed to fetch guests');
     }
   }
 
-  async importGuests(guests: Omit<Guest, 'id' | 'importedAt'>[], userId: string): Promise<Guest[]> {
+  async importGuests(guests: Omit<Guest, 'id' | 'importedAt'>[], userId?: string): Promise<Guest[]> {
     try {
+      const currentUserId = userId || this.getCurrentUserId();
+      const guestsRef = collection(db, 'guests');
+
       const newGuests = guests.map(guest => ({
         ...guest,
-        id: uuidv4(),
-        importedAt: new Date().toISOString(),
+        createdBy: currentUserId,
+        importedAt: serverTimestamp(),
       }));
 
-      const promises = newGuests.map(guest =>
-        axios.post<Guest>(`${API_URL}/guests`, guest)
-      );
-
-      await Promise.all(promises);
+      const promises = newGuests.map(guest => addDoc(guestsRef, guest));
+      const results = await Promise.all(promises);
 
       // Log activity
       await this.logActivity({
-        userId,
-        userName: 'Current User',
+        userId: currentUserId,
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Imported guests',
         details: `Added ${newGuests.length} guests`,
         eventId: newGuests[0]?.eventId || null,
         type: 'guest'
       });
 
-      return newGuests;
+      // Return created guests with IDs
+      return results.map((docRef, index) => ({
+        id: docRef.id,
+        ...newGuests[index],
+        importedAt: new Date().toISOString(),
+      } as Guest));
     } catch (error) {
       console.error('Error importing guests:', error);
       throw new Error('Failed to import guests');
     }
   }
 
+  async updateGuest(guestId: string, updates: Partial<Guest>): Promise<Guest> {
+    try {
+      const guestRef = doc(db, 'guests', guestId);
+      await updateDoc(guestRef, updates);
+
+      const updatedDoc = await getDoc(guestRef);
+      const data = updatedDoc.data();
+
+      return {
+        id: updatedDoc.id,
+        ...data,
+        importedAt: data?.importedAt?.toDate?.()?.toISOString() || data?.importedAt,
+      } as Guest;
+    } catch (error) {
+      console.error('Error updating guest:', error);
+      throw new Error('Failed to update guest');
+    }
+  }
+
+  async deleteGuest(guestId: string): Promise<void> {
+    try {
+      const guestRef = doc(db, 'guests', guestId);
+      await deleteDoc(guestRef);
+    } catch (error) {
+      console.error('Error deleting guest:', error);
+      throw new Error('Failed to delete guest');
+    }
+  }
+
   // Team Members
   async getTeamMembers(): Promise<TeamMember[]> {
     try {
-      const response = await axios.get<TeamMember[]>(`${API_URL}/teamMembers`);
-      return response.data;
+      const userId = this.getCurrentUserId();
+      const teamRef = collection(db, 'teamMembers');
+      const q = query(teamRef, where('addedBy', '==', userId));
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as TeamMember));
     } catch (error) {
       console.error('Error fetching team members:', error);
       throw new Error('Failed to fetch team members');
     }
   }
 
-  async createInvitation(createdBy: string): Promise<Invitation> {
+  async addTeamMember(member: Omit<TeamMember, 'id'>): Promise<TeamMember> {
     try {
-      const invitation: Invitation = {
-        id: uuidv4(),
+      const teamRef = collection(db, 'teamMembers');
+      const docRef = await addDoc(teamRef, {
+        ...member,
+        addedBy: this.getCurrentUserId(),
+        addedAt: serverTimestamp(),
+      });
+
+      return {
+        id: docRef.id,
+        ...member,
+      } as TeamMember;
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      throw new Error('Failed to add team member');
+    }
+  }
+
+  async createInvitation(createdBy?: string): Promise<Invitation> {
+    try {
+      const userId = createdBy || this.getCurrentUserId();
+
+      const invitation = {
         code: `SIPANIT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        createdBy,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+        createdBy: userId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         used: false,
         usedBy: null,
         usedAt: null,
+        createdAt: serverTimestamp(),
       };
 
-      const response = await axios.post<Invitation>(`${API_URL}/invitations`, invitation);
-      return response.data;
+      const invitationsRef = collection(db, 'invitations');
+      const docRef = await addDoc(invitationsRef, invitation);
+
+      return {
+        id: docRef.id,
+        ...invitation,
+        createdAt: new Date().toISOString(),
+      } as Invitation;
     } catch (error) {
       console.error('Error creating invitation:', error);
       throw new Error('Failed to create invitation');
@@ -172,10 +357,23 @@ export class DashboardService {
   // Activities
   async getActivities(): Promise<Activity[]> {
     try {
-      const response = await axios.get<Activity[]>(`${API_URL}/activities`);
-      return response.data.sort((a: Activity, b: Activity) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      const userId = this.getCurrentUserId();
+      const activitiesRef = collection(db, 'activities');
+      const q = query(
+        activitiesRef,
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc')
       );
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate?.()?.toISOString() || data.timestamp,
+        } as Activity;
+      });
     } catch (error) {
       console.error('Error fetching activities:', error);
       throw new Error('Failed to fetch activities');
@@ -184,18 +382,25 @@ export class DashboardService {
 
   async logActivity(activityData: Omit<Activity, 'id' | 'timestamp'>): Promise<Activity> {
     try {
-      const activity: Activity = {
-        id: uuidv4(),
+      const activitiesRef = collection(db, 'activities');
+      const docRef = await addDoc(activitiesRef, {
+        ...activityData,
+        timestamp: serverTimestamp(),
+      });
+
+      return {
+        id: docRef.id,
         ...activityData,
         timestamp: new Date().toISOString(),
-      };
-
-      const response = await axios.post<Activity>(`${API_URL}/activities`, activity);
-      return response.data;
+      } as Activity;
     } catch (error) {
       console.error('Error logging activity:', error);
       // Don't throw here as logging activities shouldn't break main functionality
-      return activityData as Activity;
+      return {
+        id: uuidv4(),
+        ...activityData,
+        timestamp: new Date().toISOString(),
+      } as Activity;
     }
   }
 

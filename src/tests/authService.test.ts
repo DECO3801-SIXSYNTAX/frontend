@@ -297,19 +297,17 @@ describe("AuthService", () => {
 
   describe("changePassword", () => {
     it("validates password length", async () => {
-      const userId = "550e8400-e29b-41d4-a716-446655440001";
       const currentPassword = "oldpassword";
       const newPassword = "123"; // Too short
 
-      await expect(service.changePassword(userId, currentPassword, newPassword))
-        .rejects.toThrow("New password must be at least 6 characters long");
+      await expect(service.changePassword(currentPassword, newPassword))
+        .rejects.toThrow("New password must be at least 8 characters long");
     });
 
     it("validates passwords are different", async () => {
-      const userId = "550e8400-e29b-41d4-a716-446655440001";
       const password = "samepassword";
 
-      await expect(service.changePassword(userId, password, password))
+      await expect(service.changePassword(password, password))
         .rejects.toThrow("New password must be different from current password");
     });
   });

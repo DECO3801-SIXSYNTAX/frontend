@@ -20,18 +20,40 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
 
   const refreshData = async () => {
     try {
-      if (currentPage !== 'signin') {
-        const [eventsData, guestsData, teamData, activitiesData] = await Promise.all([
+      if (currentPage !== 'signin' && currentUser) {
+        const [eventsData, guestsData, teamData, activitiesData, usersData] = await Promise.all([
           dashboardService.getEvents(),
           dashboardService.getGuests(),
           dashboardService.getTeamMembers(),
-          dashboardService.getActivities()
+          dashboardService.getActivities(),
+          dashboardService.getUsers()
         ]);
 
-        setEvents(eventsData);
+        // Filter data by company for planners
+        let filteredEvents = eventsData;
+        let filteredActivities = activitiesData;
+
+        if (currentUser.role === 'planner' && currentUser.company) {
+          // Get all users from the same company
+          const companyUserIds = usersData
+            .filter(user => user.role === 'planner' && user.company === currentUser.company)
+            .map(user => user.id);
+
+          // Filter events created by users in the same company
+          filteredEvents = eventsData.filter(event =>
+            companyUserIds.includes(event.createdBy)
+          );
+
+          // Filter activities by users in the same company
+          filteredActivities = activitiesData.filter(activity =>
+            companyUserIds.includes(activity.userId)
+          );
+        }
+
+        setEvents(filteredEvents);
         setGuests(guestsData);
         setTeamMembers(teamData);
-        setActivities(activitiesData);
+        setActivities(filteredActivities);
       }
     } catch (error) {
       console.error('Error refreshing data:', error);

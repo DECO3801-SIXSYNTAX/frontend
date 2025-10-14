@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection - users can read any user but only write their own profile
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Events collection - users can read all events but only create/update/delete their own
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Guests collection - users can read all guests but only manage guests they created
+    match /guests/{guestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Activities collection - users can only read/write their own activities
+    match /activities/{activityId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Team members collection - users can read all team members but only manage ones they added
+    match /teamMembers/{memberId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.addedBy == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.addedBy == request.auth.uid;
+    }
+
+    // Invitations collection - users can read all invitations but only manage ones they created
+    match /invitations/{invitationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+    }
+  }
+}

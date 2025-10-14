@@ -22,7 +22,7 @@ import InviteTeamModal from '../components/modals/InviteTeamModal';
 import { Event, EventStatistics } from '../types/dashboard';
 
 const Dashboard: React.FC = () => {
-  const { events, activities, teamMembers, refreshData, currentUser, setCurrentPage } = useDashboard();
+  const { events, activities, refreshData, currentUser, setCurrentPage } = useDashboard();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportGuestsModalOpen, setIsImportGuestsModalOpen] = useState(false);
   const [isInviteTeamModalOpen, setIsInviteTeamModalOpen] = useState(false);
@@ -389,41 +389,6 @@ const Dashboard: React.FC = () => {
                 <UserPlus className="w-5 h-5" />
                 <span>Invite Team Member</span>
               </motion.button>
-            </div>
-          </motion.div>
-
-          {/* Active Team */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-200"
-          >
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Active Team</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-3">
-                {teamMembers.slice(0, 3).map((member) => (
-                  <div key={member.id} className="flex items-center space-x-3">
-                    <div className="relative">
-                      <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-medium">
-                          {member.name.charAt(0)}
-                        </span>
-                      </div>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                        member.status === 'online' ? 'bg-green-500' :
-                        member.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
-                      }`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">{member.name}</p>
-                      <p className="text-xs text-gray-500">{member.role}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </motion.div>
 
