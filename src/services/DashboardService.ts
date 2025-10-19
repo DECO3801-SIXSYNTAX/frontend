@@ -16,6 +16,7 @@ import {
 import { db, auth } from '../config/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Guest, TeamMember, Activity, Invitation, CreateEventForm } from '../types/dashboard';
+import axios from 'axios';
 
 export class DashboardService {
   // Helper to get current user ID
@@ -224,74 +225,130 @@ export class DashboardService {
     }
   }
 
-  async importGuests(guests: Omit<Guest, 'id' | 'importedAt'>[], userId?: string): Promise<Guest[]> {
+  async importGuestsFromCSV(csvFile: File, eventId: string): Promise<Guest[]> {
     try {
-      const currentUserId = userId || this.getCurrentUserId();
+      const currentUserId = this.getCurrentUserId();
 
-      // Get event ID from the first guest (all guests should be for the same event)
-      const eventId = guests[0]?.eventId;
       if (!eventId) {
         throw new Error('Event ID is required for importing guests');
       }
 
-      // Get authentication token
-      console.log('DEBUG: Current auth user:', auth.currentUser);
-      console.log('DEBUG: User email:', auth.currentUser?.email);
-      console.log('DEBUG: User ID:', auth.currentUser?.uid);
+      // Get Django JWT token from localStorage (set during Google sign-in)
+      const djangoToken = localStorage.getItem('access_token');
+      console.log('DEBUG: Django JWT token:', djangoToken ? 'YES (length: ' + djangoToken.length + ')' : 'NO');
 
-      const token = await auth.currentUser?.getIdToken();
-      console.log('DEBUG: Token retrieved:', token ? 'YES (length: ' + token.length + ')' : 'NO');
-      console.log('DEBUG: Token preview:', token ? token.substring(0, 50) + '...' : 'null');
-
-      if (!token) {
-        console.error('DEBUG: Authentication token is missing!');
-        throw new Error('Authentication token not found');
+      if (!djangoToken) {
+        throw new Error('Authentication required. Please sign in with Google to import guests.');
       }
 
+      console.log('DEBUG: Using Django JWT token (length: ' + djangoToken.length + ')');
+      console.log('DEBUG: Token preview:', djangoToken.substring(0, 50) + '...');
 
-      // Prepare guest data for backend API
-      const guestsData = guests.map(guest => ({
-        name: guest.name,
-        email: guest.email,
-        phone: guest.phone || '',
-        dietary_restrictions: guest.dietaryRestrictions || 'none',
-        accessibility_needs: guest.accessibilityNeeds || 'none',
-        rsvp_status: guest.rsvpStatus || 'pending'
-      }));
+      // Create FormData to send CSV file
+      const formData = new FormData();
+      formData.append('file', csvFile); // Backend expects 'file' field name
 
-      // Call backend API
+      // Call backend API using axios with FormData
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/guest/${eventId}/import-csv/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ guests: guestsData })
+
+      console.log('Sending import CSV file to Django backend:', {
+        url: `${apiUrl}/api/guest/${eventId}/import-csv/`,
+        fileName: csvFile.name,
+        fileSize: csvFile.size,
+        fileType: csvFile.type,
+        eventId: eventId
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to import guests' }));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-      }
+      const response = await axios.post(
+        `${apiUrl}/api/guest/${eventId}/import-csv/`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${djangoToken}`,
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 30000 // 30 second timeout
+        }
+      );
 
-      const result = await response.json();
+      console.log('✓ Django backend import CSV successful:', {
+        status: response.status,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        responseData: response.data
+      });
+
+      // Log activity
+      const importedCount = response.data.imported || 0;
+      await this.logActivity({
+        userId: currentUserId,
+        userName: auth.currentUser?.displayName || 'Current User',
+        action: 'Imported guests',
+        details: `Imported ${importedCount} guests from ${csvFile.name}`,
+        eventId: eventId,
+        type: 'guest'
+      });
+
+      // Return the backend response (contains imported and skipped counts)
+      return response.data;
+    } catch (error: any) {
+      console.error('✗ Django backend import CSV error:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        responseData: error.response?.data,
+        url: error.config?.url
+      });
+
+      // Provide better error messages
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access forbidden. You don\'t have permission to import guests.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error(error.message || 'Failed to import guests');
+      }
+    }
+  }
+
+  // Keep the old method for backward compatibility but mark as deprecated
+  async importGuests(guests: Omit<Guest, 'id' | 'importedAt'>[], userId?: string): Promise<Guest[]> {
+    console.warn('importGuests is deprecated. Use importGuestsFromCSV instead.');
+    // Fallback to Firebase for now
+    try {
+      const currentUserId = userId || this.getCurrentUserId();
+      const guestsRef = collection(db, 'guests');
+
+      const newGuests = guests.map(guest => ({
+        ...guest,
+        createdBy: currentUserId,
+        importedAt: serverTimestamp(),
+      }));
+
+      const promises = newGuests.map(guest => addDoc(guestsRef, guest));
+      const results = await Promise.all(promises);
 
       // Log activity
       await this.logActivity({
         userId: currentUserId,
         userName: auth.currentUser?.displayName || 'Current User',
         action: 'Imported guests',
-        details: `Added ${guests.length} guests`,
-        eventId: eventId,
+        details: `Added ${newGuests.length} guests`,
+        eventId: newGuests[0]?.eventId || null,
         type: 'guest'
       });
 
-      // Return the imported guests from backend response
-      return result.guests || result.data || [];
-    } catch (error: any) {
+      // Return created guests with IDs
+      return results.map((docRef, index) => ({
+        id: docRef.id,
+        ...newGuests[index],
+        importedAt: new Date().toISOString(),
+      } as Guest));
+    } catch (error) {
       console.error('Error importing guests:', error);
-      throw new Error(error.message || 'Failed to import guests');
+      throw new Error('Failed to import guests');
     }
   }
 

@@ -69,26 +69,32 @@ function Protected({ children }: { children: React.ReactNode }) {
 function RoleGuard({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
   const { currentUser } = useDashboard();
   const [isChecking, setIsChecking] = React.useState(true);
+  const [firebaseUser, setFirebaseUser] = React.useState<any>(null);
 
   React.useEffect(() => {
-    // Check for JWT token from Django backend
-    const token = localStorage.getItem('access_token');
-    setIsChecking(false);
+    // Check for both JWT token and Firebase auth
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setIsChecking(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   if (isChecking) return <div className="p-6 text-sm text-slate-500">Loading...</div>;
-  
-  // Check if user is authenticated (has JWT token and currentUser)
+
+  // Check if user is authenticated (has JWT token OR Firebase auth, AND has currentUser)
   const token = localStorage.getItem('access_token');
-  if (!token || !currentUser) {
-    console.log('No auth token or user - redirecting to signin');
+  const isAuthenticated = (token || firebaseUser) && currentUser;
+
+  if (!isAuthenticated) {
+    console.log('No auth - Token:', !!token, 'Firebase:', !!firebaseUser, 'CurrentUser:', !!currentUser);
     return <Navigate to="/signin" replace />;
   }
-  
+
   // Check if user role is allowed
   const userRole = currentUser?.role?.toLowerCase() || '';
   console.log('RoleGuard: User role =', userRole, ', Allowed roles =', allowedRoles);
-  
+
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
     console.log('Role not allowed, redirecting to correct dashboard');
     // Redirect to their appropriate dashboard
@@ -97,7 +103,7 @@ function RoleGuard({ children, allowedRoles }: { children: React.ReactNode; allo
     if (userRole === 'vendor') return <Navigate to="/vendor" replace />;
     return <Navigate to="/signin" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -121,10 +127,13 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
   React.useEffect(() => {
-    // Check for JWT token instead of Firebase
-    const token = localStorage.getItem('access_token');
-    setIsAuth(!!token && !!currentUser);
-    setIsChecking(false);
+    // Check for JWT token OR Firebase auth
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const token = localStorage.getItem('access_token');
+      setIsAuth((!!token || !!firebaseUser) && !!currentUser);
+      setIsChecking(false);
+    });
+    return () => unsubscribe();
   }, [currentUser]);
 
   const isAuthRoute = location.pathname.startsWith('/signin') || location.pathname.startsWith('/signup');

@@ -175,6 +175,7 @@ export default function SignIn() {
 
         // Set current user in context
         setCurrentUser(mockUser);
+        console.log('✓ Current user set in context:', mockUser);
 
         // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
         setTimeout(() => setExiting(true), 500);
@@ -182,6 +183,7 @@ export default function SignIn() {
         // Navigate to dashboard after animation based on user role
         setTimeout(() => {
           setCurrentPage('dashboard');
+          console.log('✓ Navigating to dashboard as:', mockUser.role);
           // Navigate based on user role
           if (mockUser.role === 'admin') {
             navigate('/admin');
