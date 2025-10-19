@@ -227,36 +227,71 @@ export class DashboardService {
   async importGuests(guests: Omit<Guest, 'id' | 'importedAt'>[], userId?: string): Promise<Guest[]> {
     try {
       const currentUserId = userId || this.getCurrentUserId();
-      const guestsRef = collection(db, 'guests');
 
-      const newGuests = guests.map(guest => ({
-        ...guest,
-        createdBy: currentUserId,
-        importedAt: serverTimestamp(),
+      // Get event ID from the first guest (all guests should be for the same event)
+      const eventId = guests[0]?.eventId;
+      if (!eventId) {
+        throw new Error('Event ID is required for importing guests');
+      }
+
+      // Get authentication token
+      console.log('DEBUG: Current auth user:', auth.currentUser);
+      console.log('DEBUG: User email:', auth.currentUser?.email);
+      console.log('DEBUG: User ID:', auth.currentUser?.uid);
+
+      const token = await auth.currentUser?.getIdToken();
+      console.log('DEBUG: Token retrieved:', token ? 'YES (length: ' + token.length + ')' : 'NO');
+      console.log('DEBUG: Token preview:', token ? token.substring(0, 50) + '...' : 'null');
+
+      if (!token) {
+        console.error('DEBUG: Authentication token is missing!');
+        throw new Error('Authentication token not found');
+      }
+
+
+      // Prepare guest data for backend API
+      const guestsData = guests.map(guest => ({
+        name: guest.name,
+        email: guest.email,
+        phone: guest.phone || '',
+        dietary_restrictions: guest.dietaryRestrictions || 'none',
+        accessibility_needs: guest.accessibilityNeeds || 'none',
+        rsvp_status: guest.rsvpStatus || 'pending'
       }));
 
-      const promises = newGuests.map(guest => addDoc(guestsRef, guest));
-      const results = await Promise.all(promises);
+      // Call backend API
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/guest/${eventId}/import-csv/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ guests: guestsData })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to import guests' }));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
 
       // Log activity
       await this.logActivity({
         userId: currentUserId,
         userName: auth.currentUser?.displayName || 'Current User',
         action: 'Imported guests',
-        details: `Added ${newGuests.length} guests`,
-        eventId: newGuests[0]?.eventId || null,
+        details: `Added ${guests.length} guests`,
+        eventId: eventId,
         type: 'guest'
       });
 
-      // Return created guests with IDs
-      return results.map((docRef, index) => ({
-        id: docRef.id,
-        ...newGuests[index],
-        importedAt: new Date().toISOString(),
-      } as Guest));
-    } catch (error) {
+      // Return the imported guests from backend response
+      return result.guests || result.data || [];
+    } catch (error: any) {
       console.error('Error importing guests:', error);
-      throw new Error('Failed to import guests');
+      throw new Error(error.message || 'Failed to import guests');
     }
   }
 
