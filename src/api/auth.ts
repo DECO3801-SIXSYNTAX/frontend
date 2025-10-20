@@ -170,3 +170,50 @@ export async function apiGoogleLogin(idToken: string, role?: string): Promise<Go
     throw error;
   }
 }
+
+// Email/Password Authentication API
+export interface DjangoLoginResponse {
+  refresh: string;
+  access: string;
+  user: User;
+}
+
+export async function apiDjangoLogin(email: string, password: string): Promise<DjangoLoginResponse> {
+  const payload = {
+    username: email,  // Django expects 'username' field
+    password: password
+  };
+
+  console.log('Sending email/password login request to Django backend:', {
+    url: `${API_URL}/api/auth/login/`,
+    email: email
+  });
+
+  try {
+    const res = await axios.post<DjangoLoginResponse>(`${API_URL}/api/auth/login/`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    console.log('✓ Django backend login successful:', {
+      status: res.status,
+      hasData: !!res.data,
+      dataKeys: res.data ? Object.keys(res.data) : []
+    });
+
+    return res.data;
+  } catch (error: any) {
+    console.error('✗ Django backend login error:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      url: error.config?.url
+    });
+
+    throw error;
+  }
+}

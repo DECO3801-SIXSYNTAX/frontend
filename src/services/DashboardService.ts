@@ -18,6 +18,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { Event, Guest, TeamMember, Activity, Invitation, CreateEventForm } from '../types/dashboard';
 import axios from 'axios';
 
+export interface ImportGuestsResult {
+  imported: number;
+  skipped: number;
+}
+
 export class DashboardService {
   // Helper to get current user ID
   private getCurrentUserId(): string {
@@ -225,7 +230,7 @@ export class DashboardService {
     }
   }
 
-  async importGuestsFromCSV(csvFile: File, eventId: string): Promise<Guest[]> {
+  async importGuestsFromCSV(csvFile: File, eventId: string): Promise<ImportGuestsResult> {
     try {
       const currentUserId = this.getCurrentUserId();
 
@@ -239,6 +244,34 @@ export class DashboardService {
 
       if (!djangoToken) {
         throw new Error('Authentication required. Please sign in with Google to import guests.');
+      }
+
+      // Check if token might be expired (JWT tokens are base64 encoded)
+      try {
+        const tokenParts = djangoToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const expirationTime = payload.exp ? new Date(payload.exp * 1000) : null;
+          const now = new Date();
+          console.log('DEBUG: Token info:', {
+            issuedAt: payload.iat ? new Date(payload.iat * 1000).toLocaleString() : 'unknown',
+            expiresAt: expirationTime ? expirationTime.toLocaleString() : 'unknown',
+            isExpired: expirationTime ? now > expirationTime : 'unknown',
+            userId: payload.user_id || payload.sub
+          });
+
+          if (expirationTime && now > expirationTime) {
+            console.error('Token expired! Clearing old token...');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            throw new Error('Your session has expired. Please sign in with Google to import guests.');
+          }
+        }
+      } catch (parseError: any) {
+        if (parseError.message?.includes('session has expired')) {
+          throw parseError; // Re-throw our custom error
+        }
+        console.warn('Could not parse JWT token:', parseError);
       }
 
       console.log('DEBUG: Using Django JWT token (length: ' + djangoToken.length + ')');

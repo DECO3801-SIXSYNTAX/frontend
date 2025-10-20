@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDashboard } from "../contexts/DashboardContext";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../config/firebase";
+import { apiDjangoLogin } from "../api/auth";
 
 const authService = new AuthService();
 
@@ -118,83 +119,99 @@ export default function SignIn() {
     showMessage("Signing you in...", "loading");
 
     try {
-      // For now, use mock authentication to work with the dashboard
-      // TODO: Replace with real authentication when backend is ready
-      if (email && password) {
-        // Sign in to Firebase to enable Firestore access
-        try {
-          console.log('Attempting Firebase sign-in...');
-          await signInWithEmailAndPassword(auth, email, password);
-          console.log('✓ Firebase sign-in successful');
-        } catch (firebaseError: any) {
-          console.log('Firebase sign-in error:', firebaseError.code, firebaseError.message);
+      // Sign in with Django backend to get JWT tokens
+      let djangoAuthResponse;
+      try {
+        console.log('Attempting Django backend login...');
+        djangoAuthResponse = await apiDjangoLogin(email, password);
+        console.log('✓ Django backend login successful');
 
-          // If user doesn't exist in Firebase, create them
-          if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
-            try {
-              console.log('Attempting to create Firebase user...');
-              await createUserWithEmailAndPassword(auth, email, password);
-              console.log('✓ Firebase user created successfully');
-            } catch (createError: any) {
-              console.error('Firebase user creation error:', createError.code, createError.message);
+        // Store JWT tokens for API calls
+        localStorage.setItem('access_token', djangoAuthResponse.access);
+        localStorage.setItem('refresh_token', djangoAuthResponse.refresh);
+        console.log('✓ JWT tokens stored in localStorage');
+      } catch (djangoError: any) {
+        console.error('Django backend login error:', djangoError);
 
-              // If creation fails (e.g., user exists but wrong password), show error
-              if (createError.code === 'auth/email-already-in-use') {
-                showMessage('Invalid password for existing account', 'error');
-                return;
-              } else if (createError.code === 'auth/weak-password') {
-                showMessage('Password should be at least 6 characters', 'error');
-                return;
-              } else {
-                throw createError;
-              }
-            }
-          } else {
-            throw firebaseError;
-          }
+        // Show specific error message from Django backend
+        if (djangoError.response?.status === 401) {
+          showMessage('Invalid email or password', 'error');
+        } else if (djangoError.response?.status === 400) {
+          showMessage('Please check your credentials', 'error');
+        } else {
+          showMessage('Login failed. Please check if backend is running.', 'error');
         }
-
-        // Determine user role - check if it's admin email, otherwise default to planner
-        let userRole: 'admin' | 'planner' | 'vendor' = 'planner';
-        if (email.includes('admin')) {
-          userRole = 'admin';
-        } else if (email.includes('vendor')) {
-          userRole = 'vendor';
-        }
-
-        const mockUser = {
-          id: auth.currentUser?.uid || 'mock-user-' + Date.now(),
-          email: email,
-          name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-          role: userRole,
-          password: password
-        };
-
-        // ✅ Berhasil → tampilin success + trigger ending animation
-        showMessage(`Welcome back, ${mockUser.name}! Sign in successful.`, "success");
-
-        // Set current user in context
-        setCurrentUser(mockUser);
-        console.log('✓ Current user set in context:', mockUser);
-
-        // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
-        setTimeout(() => setExiting(true), 500);
-
-        // Navigate to dashboard after animation based on user role
-        setTimeout(() => {
-          setCurrentPage('dashboard');
-          console.log('✓ Navigating to dashboard as:', mockUser.role);
-          // Navigate based on user role
-          if (mockUser.role === 'admin') {
-            navigate('/admin');
-          } else if (mockUser.role === 'vendor') {
-            navigate('/vendor');
-          } else {
-            navigate('/planner/dashboard');
-          }
-        }, 900);
         return;
       }
+
+      // Sign in to Firebase to enable Firestore access
+      try {
+        console.log('Attempting Firebase sign-in...');
+        await signInWithEmailAndPassword(auth, email, password);
+        console.log('✓ Firebase sign-in successful');
+      } catch (firebaseError: any) {
+        console.log('Firebase sign-in error:', firebaseError.code, firebaseError.message);
+
+        // If user doesn't exist in Firebase, create them
+        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
+          try {
+            console.log('Attempting to create Firebase user...');
+            await createUserWithEmailAndPassword(auth, email, password);
+            console.log('✓ Firebase user created successfully');
+          } catch (createError: any) {
+            console.error('Firebase user creation error:', createError.code, createError.message);
+
+            // If creation fails (e.g., user exists but wrong password), show error
+            if (createError.code === 'auth/email-already-in-use') {
+              showMessage('Invalid password for existing account', 'error');
+              return;
+            } else if (createError.code === 'auth/weak-password') {
+              showMessage('Password should be at least 6 characters', 'error');
+              return;
+            } else {
+              throw createError;
+            }
+          }
+        } else {
+          throw firebaseError;
+        }
+      }
+
+      // Use user data from Django backend
+      const user = djangoAuthResponse.user;
+      const userRole = (user.role as 'admin' | 'planner' | 'vendor') || 'planner';
+      const finalUser = {
+        id: auth.currentUser?.uid || user.id,
+        email: user.email,
+        name: user.name || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+        role: userRole,
+        password: password
+      };
+
+      // ✅ Berhasil → tampilin success + trigger ending animation
+      showMessage(`Welcome back, ${finalUser.name}! Sign in successful.`, "success");
+
+      // Set current user in context
+      setCurrentUser(finalUser);
+      console.log('✓ Current user set in context:', finalUser);
+
+      // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
+      setTimeout(() => setExiting(true), 500);
+
+      // Navigate to dashboard after animation based on user role
+      setTimeout(() => {
+        setCurrentPage('dashboard');
+        console.log('✓ Navigating to dashboard as:', finalUser.role);
+        // Navigate based on user role
+        if (finalUser.role === 'admin') {
+          navigate('/admin');
+        } else if (finalUser.role === 'vendor') {
+          navigate('/vendor');
+        } else {
+          navigate('/planner/dashboard');
+        }
+      }, 900);
+      return;
     } catch (err: any) {
       let errorMessage = "An error occurred. Please try again.";
 
@@ -536,7 +553,7 @@ export default function SignIn() {
                       try {
                         await signInWithEmailAndPassword(auth, user.email, defaultPassword);
                       } catch (firebaseError: any) {
-                        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password') {
+                        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
                           await createUserWithEmailAndPassword(auth, user.email, defaultPassword);
                         }
                       }
@@ -547,14 +564,26 @@ export default function SignIn() {
                     showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
                     // Set user data from Google authentication with Firebase UID
+                    const userRole = (user.role as 'admin' | 'planner' | 'vendor') || 'planner';
                     setCurrentUser({
                       ...user,
-                      id: auth.currentUser?.uid || user.id
+                      id: auth.currentUser?.uid || user.id,
+                      role: userRole
                     });
 
-                    // 🎬 Ending setelah Google success (opsional)
+                    // 🎬 Ending setelah Google success
                     setTimeout(() => setExiting(true), 350);
-                    setTimeout(() => setCurrentPage('dashboard'), 800);
+                    setTimeout(() => {
+                      setCurrentPage('dashboard');
+                      // Navigate based on user role
+                      if (userRole === 'admin') {
+                        navigate('/admin');
+                      } else if (userRole === 'vendor') {
+                        navigate('/vendor');
+                      } else {
+                        navigate('/planner/dashboard');
+                      }
+                    }, 800);
                   }}
                   onError={(error) => showMessage(`Google sign in failed: ${error}`, "error")}
                 />
