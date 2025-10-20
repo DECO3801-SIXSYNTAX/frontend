@@ -13,7 +13,7 @@ export interface Event {
   budget: number;
   dietaryNeeds: number;
   accessibilityNeeds: number;
-  status: 'draft' | 'planning' | 'active' | 'confirmed' | 'done';
+  status: 'draft' | 'published' | 'done';
   createdBy: string;
   createdAt: string;
   updatedAt: string;

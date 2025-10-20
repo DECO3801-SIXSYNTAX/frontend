@@ -97,10 +97,8 @@ const Dashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'bg-gray-100 text-gray-700';
-      case 'planning': return 'bg-blue-100 text-blue-700';
-      case 'active': return 'bg-yellow-100 text-yellow-700';
-      case 'confirmed': return 'bg-green-100 text-green-700';
-      case 'done': return 'bg-purple-100 text-purple-700';
+      case 'published': return 'bg-blue-100 text-blue-700';
+      case 'done': return 'bg-green-100 text-green-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
