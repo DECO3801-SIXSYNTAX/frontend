@@ -267,8 +267,10 @@ export class AuthService {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
-      Logger.info('Password reset email sent', email);
+      // Use Django backend API with SendGrid integration
+      const { apiRequestPasswordReset } = await import('../api/auth');
+      await apiRequestPasswordReset(email);
+      Logger.info('Password reset email sent via Django backend', email);
     } catch (err: any) {
       Logger.error('Password reset request failed', err);
       // Don't reveal if email exists for security

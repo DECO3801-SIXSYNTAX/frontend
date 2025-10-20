@@ -217,3 +217,34 @@ export async function apiDjangoLogin(email: string, password: string): Promise<D
     throw error;
   }
 }
+
+// Password Reset API
+export async function apiRequestPasswordReset(email: string): Promise<{ detail: string }> {
+  const payload = { email };
+
+  console.log('Sending password reset request to Django backend:', {
+    url: `${API_URL}/api/auth/password-reset/`,
+    email: email
+  });
+
+  try {
+    const res = await axios.post(`${API_URL}/api/auth/password-reset/`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    console.log('✓ Password reset email sent');
+    return res.data;
+  } catch (error: any) {
+    console.error('✗ Password reset request error:', {
+      message: error.message,
+      status: error.response?.status,
+      responseData: error.response?.data
+    });
+
+    throw error;
+  }
+}

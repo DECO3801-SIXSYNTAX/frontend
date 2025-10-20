@@ -102,6 +102,20 @@ const EventsList: React.FC = () => {
     }
   };
 
+  const handleChangeStatus = async (event: Event, newStatus: 'draft' | 'published' | 'done') => {
+    try {
+      await dashboardService.updateEvent(
+        event.id,
+        { ...event, status: newStatus },
+        currentUser?.id || ''
+      );
+      await refreshData();
+      setActiveDropdown(null);
+    } catch (error) {
+      console.error('Error changing event status:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'bg-gray-100 text-gray-700';
@@ -273,16 +287,40 @@ const EventsList: React.FC = () => {
                       <Edit className="w-4 h-4 mr-3" />
                       Edit
                     </button>
-                    <button
-                      onClick={() => {
-                        handleMarkAsDone(event);
-                        setActiveDropdown(null);
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-3" />
-                      Mark as Done
-                    </button>
+
+                    <div className="border-t border-gray-100 my-1"></div>
+
+                    {/* Status Change Options */}
+                    {event.status !== 'draft' && (
+                      <button
+                        onClick={() => handleChangeStatus(event, 'draft')}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="w-4 h-4 mr-3 rounded-full bg-gray-400"></div>
+                        Mark as Draft
+                      </button>
+                    )}
+                    {event.status !== 'published' && (
+                      <button
+                        onClick={() => handleChangeStatus(event, 'published')}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="w-4 h-4 mr-3 rounded-full bg-blue-500"></div>
+                        Mark as Published
+                      </button>
+                    )}
+                    {event.status !== 'done' && (
+                      <button
+                        onClick={() => handleChangeStatus(event, 'done')}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-3 text-green-600" />
+                        Mark as Done
+                      </button>
+                    )}
+
+                    <div className="border-t border-gray-100 my-1"></div>
+
                     <button
                       onClick={() => {
                         handleDeleteEvent(event.id);

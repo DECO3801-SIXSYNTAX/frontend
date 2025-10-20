@@ -18,6 +18,7 @@ import VendorDashboard from "./pages/vendor/VendorDashboard";
 import { LandingPage } from "./pages/LandingPage";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 // Planner pages
 import Dashboard from "./pages/Dashboard";
 import EventsList from "./pages/EventsList";
@@ -136,7 +137,7 @@ export default function App() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  const isAuthRoute = location.pathname.startsWith('/signin') || location.pathname.startsWith('/signup');
+  const isAuthRoute = location.pathname.startsWith('/signin') || location.pathname.startsWith('/signup') || location.pathname.startsWith('/reset-password');
   const isLandingRoute = location.pathname === '/';
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isPlannerRoute = location.pathname.startsWith('/planner');
@@ -169,6 +170,7 @@ export default function App() {
         <Routes>
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUpWrapper />} />
+          <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
         </Routes>
       )}
       
