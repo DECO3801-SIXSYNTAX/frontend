@@ -834,8 +834,6 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                          guest.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (selectedGuestFilter === 'all') return matchesSearch;
-    if (selectedGuestFilter === 'vip') return matchesSearch && (guest as any).role === 'VIP';
-    if (selectedGuestFilter === 'speakers') return matchesSearch && (guest as any).role === 'Speaker';
     if (selectedGuestFilter === 'dietary') return matchesSearch && guest.dietaryRestrictionsArray && guest.dietaryRestrictionsArray.length > 0;
     if (selectedGuestFilter === 'accessibility') return matchesSearch && guest.accessibilityNeedsArray && guest.accessibilityNeedsArray.length > 0;
     if (selectedGuestFilter === 'unassigned') return matchesSearch && !guest.tableId;
@@ -1209,8 +1207,8 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                 <div className="flex flex-wrap gap-1 mb-3">
                   {[
                     { id: 'all', label: 'All', count: guests.length },
-                    { id: 'vip', label: 'VIP', count: guests.filter(g => g.role === 'VIP').length },
-                    { id: 'speakers', label: 'Speakers', count: guests.filter(g => g.role === 'Speaker').length },
+                    { id: 'dietary', label: 'Dietary Needs', count: guests.filter(g => g.dietaryRestrictionsArray && g.dietaryRestrictionsArray.length > 0).length },
+                    { id: 'accessibility', label: 'Accessibility', count: guests.filter(g => g.accessibilityNeedsArray && g.accessibilityNeedsArray.length > 0).length },
                     { id: 'unassigned', label: 'Unassigned', count: guests.filter(g => !g.tableId).length }
                   ].map(filter => (
                     <button
@@ -1833,19 +1831,25 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={guestForm.phone}
+                  onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="+1 234 567 8900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">RSVP Status</label>
                 <select
-                  value={guestForm.role}
-                  onChange={(e) => setGuestForm({ ...guestForm, role: e.target.value as Guest['role'] })}
+                  value={guestForm.rsvpStatus}
+                  onChange={(e) => setGuestForm({ ...guestForm, rsvpStatus: e.target.value as 'pending' | 'confirmed' | 'declined' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="Guest">Guest</option>
-                  <option value="VIP">VIP</option>
-                  <option value="Speaker">Speaker</option>
-                  <option value="CEO">CEO</option>
-                  <option value="Director">Director</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Employee">Employee</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="declined">Declined</option>
                 </select>
               </div>
               <div>
