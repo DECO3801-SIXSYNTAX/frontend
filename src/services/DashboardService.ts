@@ -230,6 +230,40 @@ export class DashboardService {
     }
   }
 
+  async createGuest(guestData: Omit<Guest, 'id' | 'importedAt'>, userId?: string): Promise<Guest> {
+    try {
+      const currentUserId = userId || this.getCurrentUserId();
+      const guestsRef = collection(db, 'guests');
+
+      const newGuest = {
+        ...guestData,
+        createdBy: currentUserId,
+        importedAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(guestsRef, newGuest);
+
+      // Log activity
+      await this.logActivity({
+        userId: currentUserId,
+        userName: auth.currentUser?.displayName || 'Current User',
+        action: 'Added guest',
+        details: `Added ${guestData.name}`,
+        eventId: guestData.eventId,
+        type: 'guest'
+      });
+
+      return {
+        id: docRef.id,
+        ...newGuest,
+        importedAt: new Date().toISOString(),
+      } as Guest;
+    } catch (error) {
+      console.error('Error creating guest:', error);
+      throw new Error('Failed to create guest');
+    }
+  }
+
   async importGuestsFromCSV(csvFile: File, eventId: string): Promise<ImportGuestsResult> {
     try {
       const currentUserId = this.getCurrentUserId();
@@ -540,14 +574,28 @@ export class DashboardService {
     try {
       const [events, guests] = await Promise.all([
         this.getEvents(),
-        this.getGuests()
+        this.getGuests() // Gets ALL guests across all user's events
       ]);
 
-      const totalGuests = events.reduce((sum, event) => sum + event.expectedAttendees, 0);
-      const assignedSeats = events.reduce((sum, event) => sum + event.actualAttendees, 0);
-      const dietaryNeeds = events.reduce((sum, event) => sum + event.dietaryNeeds, 0);
-      const accessibilityNeeds = events.reduce((sum, event) => sum + event.accessibilityNeeds, 0);
+      // Calculate from actual guest data, not from event fields
+      const totalGuests = guests.length;
 
+      // Count guests that have been assigned seats (have seatId, tableId, or seatNumber)
+      const assignedSeats = guests.filter(guest =>
+        guest.seatId || guest.tableId || guest.seatNumber
+      ).length;
+
+      // Count guests with dietary requirements
+      const dietaryNeeds = guests.filter(guest =>
+        guest.dietaryRestrictions && guest.dietaryRestrictions.trim() !== '' && guest.dietaryRestrictions.toLowerCase() !== 'none'
+      ).length;
+
+      // Count guests with accessibility requirements
+      const accessibilityNeeds = guests.filter(guest =>
+        guest.accessibilityNeeds && guest.accessibilityNeeds.trim() !== '' && guest.accessibilityNeeds.toLowerCase() !== 'none'
+      ).length;
+
+      // Calculate completion rate based on events
       const totalEvents = events.length;
       const completedEvents = events.filter(event =>
         event.status === 'done' || new Date(event.endDate) < new Date()

@@ -32,6 +32,10 @@ export interface Guest {
   accessibilityNeeds: string;
   rsvpStatus: 'pending' | 'confirmed' | 'declined';
   importedAt: string;
+  // Seat assignment properties (set when guest is assigned to a seat in layout editor)
+  seatId?: string;
+  tableId?: string;
+  seatNumber?: string;
 }
 
 export interface TeamMember {
