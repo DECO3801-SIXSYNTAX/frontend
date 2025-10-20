@@ -39,6 +39,8 @@ import {
 import { useDashboard } from '../contexts/DashboardContext';
 import Layout from '../components/layout/Layout';
 import { FloorPlanService } from '../services/FloorPlanService';
+import { DashboardService } from '../services/DashboardService';
+import { Guest as DashboardGuest } from '../types/dashboard';
 
 // Configuration-based element types with realistic dimensions
 interface ElementConfig {
@@ -195,17 +197,23 @@ interface LayoutElement {
   radius?: number;
 }
 
-interface Guest {
-  id: string;
-  name: string;
-  email: string;
-  role: 'VIP' | 'Speaker' | 'CEO' | 'Director' | 'Manager' | 'Employee' | 'Guest';
-  dietaryRestrictions: string[];
-  accessibilityNeeds: string[];
-  avatar?: string;
-  tableId?: string;
-  seatNumber?: number;
+// Use the dashboard Guest type, with helper for local UI display
+type LayoutGuest = DashboardGuest & {
+  // Helper properties for UI (derived from dietaryRestrictions/accessibilityNeeds strings)
+  dietaryRestrictionsArray?: string[];
+  accessibilityNeedsArray?: string[];
 }
+
+// Helper functions to convert between string and array formats
+const parseDietaryRestrictions = (str: string): string[] => {
+  if (!str || str.trim() === '' || str.toLowerCase() === 'none') return [];
+  return str.split(',').map(s => s.trim()).filter(Boolean);
+};
+
+const parseAccessibilityNeeds = (str: string): string[] => {
+  if (!str || str.trim() === '' || str.toLowerCase() === 'none') return [];
+  return str.split(',').map(s => s.trim()).filter(Boolean);
+};
 
 interface RoomBoundary {
   vertices: { x: number; y: number }[];
@@ -260,43 +268,19 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
   // Layout state
   const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
 
-  // Guest management state
-  const [guests, setGuests] = useState<Guest[]>([
-    {
-      id: 'guest-1',
-      name: 'John Smith',
-      email: 'john@example.com',
-      role: 'VIP',
-      dietaryRestrictions: ['Vegan'],
-      accessibilityNeeds: []
-    },
-    {
-      id: 'guest-2',
-      name: 'Sarah Johnson',
-      email: 'sarah@example.com',
-      role: 'Speaker',
-      dietaryRestrictions: [],
-      accessibilityNeeds: ['Wheelchair']
-    },
-    {
-      id: 'guest-3',
-      name: 'Mike Wilson',
-      email: 'mike@example.com',
-      role: 'CEO',
-      dietaryRestrictions: ['Gluten-Free'],
-      accessibilityNeeds: []
-    }
-  ]);
+  // Guest management state (loaded from Firebase)
+  const [guests, setGuests] = useState<LayoutGuest[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGuestFilter, setSelectedGuestFilter] = useState('all');
   const [activeGuestDropdown, setActiveGuestDropdown] = useState<string | null>(null);
   const [showGuestModal, setShowGuestModal] = useState(false);
-  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [editingGuest, setEditingGuest] = useState<LayoutGuest | null>(null);
   const [guestForm, setGuestForm] = useState({
     name: '',
     email: '',
-    role: 'Guest' as Guest['role'],
+    phone: '',
+    rsvpStatus: 'pending' as 'pending' | 'confirmed' | 'declined',
     dietaryRestrictions: '',
     accessibilityNeeds: ''
   });
@@ -308,13 +292,15 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
     { id: 'user2', name: 'Bob Smith', avatar: '', color: '#10B981' }
   ]);
 
-  // Initialize FloorPlanService
+  // Initialize services
   const floorPlanService = new FloorPlanService();
+  const dashboardService = new DashboardService();
 
-  // Load floor plan on mount
+  // Load floor plan and guests on mount
   useEffect(() => {
     if (eventId) {
       loadFloorPlan();
+      loadGuests();
     }
   }, [eventId]);
 
@@ -353,6 +339,26 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
       }
     } catch (error) {
       console.error('Error loading floor plan:', error);
+    }
+  };
+
+  const loadGuests = async () => {
+    try {
+      if (!eventId) return;
+
+      const firebaseGuests = await dashboardService.getGuests(eventId);
+
+      // Convert Firebase guests to LayoutGuests with parsed arrays
+      const layoutGuests: LayoutGuest[] = firebaseGuests.map(guest => ({
+        ...guest,
+        dietaryRestrictionsArray: parseDietaryRestrictions(guest.dietaryRestrictions || ''),
+        accessibilityNeedsArray: parseAccessibilityNeeds(guest.accessibilityNeeds || '')
+      }));
+
+      setGuests(layoutGuests);
+      console.log(`Loaded ${layoutGuests.length} guests for event:`, eventId);
+    } catch (error) {
+      console.error('Error loading guests:', error);
     }
   };
 
@@ -701,85 +707,126 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
     setGuestForm({
       name: '',
       email: '',
-      role: 'Guest',
+      phone: '',
+      rsvpStatus: 'pending',
       dietaryRestrictions: '',
       accessibilityNeeds: ''
     });
     setShowGuestModal(true);
   };
 
-  const openEditGuestModal = (guest: Guest) => {
+  const openEditGuestModal = (guest: LayoutGuest) => {
     setEditingGuest(guest);
     setGuestForm({
       name: guest.name,
       email: guest.email,
-      role: guest.role,
-      dietaryRestrictions: guest.dietaryRestrictions.join(', '),
-      accessibilityNeeds: guest.accessibilityNeeds.join(', ')
+      phone: guest.phone || '',
+      rsvpStatus: guest.rsvpStatus,
+      dietaryRestrictions: guest.dietaryRestrictions || '',
+      accessibilityNeeds: guest.accessibilityNeeds || ''
     });
     setShowGuestModal(true);
     setActiveGuestDropdown(null);
   };
 
-  const handleSaveGuest = () => {
-    if (!guestForm.name.trim()) return;
+  const handleSaveGuest = async () => {
+    if (!guestForm.name.trim() || !eventId) return;
 
-    const dietary = guestForm.dietaryRestrictions
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-    const accessibility = guestForm.accessibilityNeeds
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
+    try {
+      if (editingGuest) {
+        // Update existing guest in Firebase
+        await dashboardService.updateGuest(editingGuest.id, {
+          name: guestForm.name,
+          email: guestForm.email,
+          phone: guestForm.phone,
+          rsvpStatus: guestForm.rsvpStatus,
+          dietaryRestrictions: guestForm.dietaryRestrictions,
+          accessibilityNeeds: guestForm.accessibilityNeeds
+        });
+        console.log('Guest updated:', editingGuest.id);
+      } else {
+        // Create new guest in Firebase
+        const newGuest = await dashboardService.createGuest({
+          eventId: eventId,
+          name: guestForm.name,
+          email: guestForm.email,
+          phone: guestForm.phone,
+          rsvpStatus: guestForm.rsvpStatus,
+          dietaryRestrictions: guestForm.dietaryRestrictions,
+          accessibilityNeeds: guestForm.accessibilityNeeds
+        });
+        console.log('Guest created:', newGuest.id);
+      }
 
-    if (editingGuest) {
-      setGuests(guests.map(g =>
-        g.id === editingGuest.id
-          ? { ...g, ...guestForm, dietaryRestrictions: dietary, accessibilityNeeds: accessibility }
-          : g
-      ));
-    } else {
-      const newGuest: Guest = {
-        id: `guest-${Date.now()}`,
-        name: guestForm.name,
-        email: guestForm.email,
-        role: guestForm.role,
-        dietaryRestrictions: dietary,
-        accessibilityNeeds: accessibility
-      };
-      setGuests([...guests, newGuest]);
+      // Reload guests from Firebase
+      await loadGuests();
+      setShowGuestModal(false);
+    } catch (error) {
+      console.error('Error saving guest:', error);
+      alert('Failed to save guest. Please try again.');
     }
-
-    setShowGuestModal(false);
   };
 
-  const handleDeleteGuest = (guestId: string) => {
+  const handleDeleteGuest = async (guestId: string) => {
     if (!window.confirm('Are you sure you want to delete this guest?')) return;
 
-    // Remove from all elements
-    setLayoutElements(elements =>
-      elements.map(el => ({
-        ...el,
-        assignedGuests: el.assignedGuests.filter(id => id !== guestId)
-      }))
-    );
-    setGuests(guests.filter(g => g.id !== guestId));
-    setActiveGuestDropdown(null);
+    try {
+      // Delete from Firebase
+      await dashboardService.deleteGuest(guestId);
+      console.log('Guest deleted:', guestId);
+
+      // Remove from local elements
+      setLayoutElements(elements =>
+        elements.map(el => ({
+          ...el,
+          assignedGuests: el.assignedGuests.filter(id => id !== guestId)
+        }))
+      );
+
+      // Reload guests from Firebase
+      await loadGuests();
+      setActiveGuestDropdown(null);
+    } catch (error) {
+      console.error('Error deleting guest:', error);
+      alert('Failed to delete guest. Please try again.');
+    }
   };
 
-  const handleAssignGuest = (guestId: string, elementId: string) => {
-    // Remove guest from all other elements
-    setLayoutElements(elements =>
-      elements.map(el => ({
-        ...el,
-        assignedGuests: el.id === elementId
-          ? [...el.assignedGuests, guestId]
-          : el.assignedGuests.filter(id => id !== guestId)
-      }))
-    );
-    setAssigningGuestId(null);
-    setActiveGuestDropdown(null);
+  const handleAssignGuest = async (guestId: string, elementId: string) => {
+    try {
+      const element = layoutElements.find(el => el.id === elementId);
+      if (!element) return;
+
+      // Calculate seat number (current assigned guests + 1)
+      const seatNumber = (element.assignedGuests.length + 1).toString();
+
+      // Update guest in Firebase with seat assignment
+      await dashboardService.updateGuest(guestId, {
+        tableId: elementId,
+        seatId: `${elementId}-seat-${seatNumber}`,
+        seatNumber: seatNumber
+      });
+      console.log(`Guest ${guestId} assigned to ${element.name}, seat ${seatNumber}`);
+
+      // Update local layout elements
+      setLayoutElements(elements =>
+        elements.map(el => ({
+          ...el,
+          assignedGuests: el.id === elementId
+            ? [...el.assignedGuests, guestId]
+            : el.assignedGuests.filter(id => id !== guestId)
+        }))
+      );
+
+      // Reload guests to reflect the updated seat assignments
+      await loadGuests();
+
+      setAssigningGuestId(null);
+      setActiveGuestDropdown(null);
+    } catch (error) {
+      console.error('Error assigning guest:', error);
+      alert('Failed to assign guest. Please try again.');
+    }
   };
 
   const filteredGuests = guests.filter(guest => {
@@ -787,10 +834,10 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                          guest.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (selectedGuestFilter === 'all') return matchesSearch;
-    if (selectedGuestFilter === 'vip') return matchesSearch && guest.role === 'VIP';
-    if (selectedGuestFilter === 'speakers') return matchesSearch && guest.role === 'Speaker';
-    if (selectedGuestFilter === 'dietary') return matchesSearch && guest.dietaryRestrictions.length > 0;
-    if (selectedGuestFilter === 'accessibility') return matchesSearch && guest.accessibilityNeeds.length > 0;
+    if (selectedGuestFilter === 'vip') return matchesSearch && (guest as any).role === 'VIP';
+    if (selectedGuestFilter === 'speakers') return matchesSearch && (guest as any).role === 'Speaker';
+    if (selectedGuestFilter === 'dietary') return matchesSearch && guest.dietaryRestrictionsArray && guest.dietaryRestrictionsArray.length > 0;
+    if (selectedGuestFilter === 'accessibility') return matchesSearch && guest.accessibilityNeedsArray && guest.accessibilityNeedsArray.length > 0;
     if (selectedGuestFilter === 'unassigned') return matchesSearch && !guest.tableId;
 
     return matchesSearch;
@@ -1193,20 +1240,12 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                       <div className="flex-1 min-w-0 mr-6">
                         <p className="text-sm font-medium text-gray-900 truncate">{guest.name}</p>
                         <div className="flex flex-wrap items-center gap-1 mt-1">
-                          <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                            guest.role === 'VIP' ? 'bg-yellow-100 text-yellow-800' :
-                            guest.role === 'Speaker' ? 'bg-blue-100 text-blue-800' :
-                            guest.role === 'CEO' ? 'bg-purple-100 text-purple-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {guest.role}
-                          </span>
-                          {guest.dietaryRestrictions.map((diet, i) => (
+                          {guest.dietaryRestrictionsArray && guest.dietaryRestrictionsArray.map((diet, i) => (
                             <span key={i} className="px-1.5 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800">
                               {diet}
                             </span>
                           ))}
-                          {guest.accessibilityNeeds.map((need, i) => (
+                          {guest.accessibilityNeedsArray && guest.accessibilityNeedsArray.map((need, i) => (
                             <span key={i} className="px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
                               {need}
                             </span>
