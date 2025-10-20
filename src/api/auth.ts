@@ -248,3 +248,41 @@ export async function apiRequestPasswordReset(email: string): Promise<{ detail: 
     throw error;
   }
 }
+
+// Vendor Invitation API
+export interface VendorInvitationPayload {
+  email: string;
+  event_id: string;
+  event_name: string;
+  event_date: string;
+  event_venue: string;
+}
+
+export async function apiInviteVendor(payload: VendorInvitationPayload): Promise<{ detail: string }> {
+  console.log('Sending vendor invitation request to Django backend:', {
+    url: `${API_URL}/api/auth/invite-vendor/`,
+    email: payload.email,
+    eventId: payload.event_id
+  });
+
+  try {
+    const res = await axios.post(`${API_URL}/api/auth/invite-vendor/`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    console.log('✓ Vendor invitation email sent');
+    return res.data;
+  } catch (error: any) {
+    console.error('✗ Vendor invitation request error:', {
+      message: error.message,
+      status: error.response?.status,
+      responseData: error.response?.data
+    });
+
+    throw error;
+  }
+}

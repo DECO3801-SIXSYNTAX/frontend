@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { FloorPlanService, FloorPlan } from '../services/FloorPlanService';
+import { apiInviteVendor } from '../api/auth';
 
 const EventListForLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const EventListForLayout: React.FC = () => {
   const [viewingLayout, setViewingLayout] = useState<string | null>(null);
   const [inviteVendorModal, setInviteVendorModal] = useState<string | null>(null);
   const [vendorEmail, setVendorEmail] = useState('');
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
 
   const floorPlanService = new FloorPlanService();
   const [floorPlanStatus, setFloorPlanStatus] = useState<{[eventId: string]: boolean}>({});
@@ -87,15 +89,40 @@ const EventListForLayout: React.FC = () => {
   const handleInviteVendor = async () => {
     if (!vendorEmail.trim() || !inviteVendorModal) return;
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(vendorEmail)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setIsSendingInvite(true);
+
     try {
-      // Here you would typically send an invitation email
-      // For now, we'll just show a success message
-      alert(`Invitation sent to ${vendorEmail} for event access!`);
+      // Get event details
+      const event = events.find(e => e.id === inviteVendorModal);
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      // Send invitation via backend
+      await apiInviteVendor({
+        email: vendorEmail,
+        event_id: event.id,
+        event_name: event.name,
+        event_date: event.startDate,
+        event_venue: event.venue
+      });
+
+      alert(`Invitation sent successfully to ${vendorEmail}!`);
       setInviteVendorModal(null);
       setVendorEmail('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error inviting vendor:', error);
-      alert('Failed to send invitation');
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to send invitation';
+      alert(errorMessage);
+    } finally {
+      setIsSendingInvite(false);
     }
   };
 
@@ -388,16 +415,24 @@ const EventListForLayout: React.FC = () => {
               <div className="p-6 border-t border-gray-200 flex items-center justify-end space-x-3">
                 <button
                   onClick={() => setInviteVendorModal(null)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={isSendingInvite}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleInviteVendor}
-                  disabled={!vendorEmail.trim()}
-                  className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!vendorEmail.trim() || isSendingInvite}
+                  className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  Send Invitation
+                  {isSendingInvite ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <span>Send Invitation</span>
+                  )}
                 </button>
               </div>
             </motion.div>
