@@ -173,33 +173,38 @@ const ImportGuestsModal: React.FC<ImportGuestsModalProps> = ({ isOpen, onClose }
       return;
     }
 
-    if (!selectedFile) {
-      setImportResults({
-        successful: 0,
-        failed: 0,
-        errors: ['No file selected']
-      });
-      setStep('result');
-      return;
-    }
-
     setIsProcessing(true);
 
     try {
-      // Send the CSV file directly to the backend
-      const result = await dashboardService.importGuestsFromCSV(selectedFile, selectedEventId);
+      const { valid, errors } = validateData(parsedData);
+
+      if (valid.length === 0) {
+        setImportResults({
+          successful: 0,
+          failed: parsedData.length,
+          errors: ['No valid guest data found', ...errors]
+        });
+        setStep('result');
+        return;
+      }
+
+      const guestsToImport = valid.map(row => ({
+        eventId: selectedEventId,
+        name: row.name,
+        email: row.email,
+        phone: row.phone || '',
+        dietaryRestrictions: row.dietaryRestrictions || 'none',
+        accessibilityNeeds: row.accessibilityNeeds || 'none',
+        rsvpStatus: 'pending' as const
+      }));
+
+      await dashboardService.importGuests(guestsToImport, currentUser?.id || '');
       await refreshData();
 
-      // Backend returns { imported: X, skipped: Y }
-      const importedCount = result.imported || 0;
-      const skippedCount = result.skipped || 0;
-
-      console.log('Import result:', { imported: importedCount, skipped: skippedCount });
-
       setImportResults({
-        successful: importedCount,
-        failed: skippedCount,
-        errors: skippedCount > 0 ? [`${skippedCount} guests were skipped (may already exist)`] : []
+        successful: valid.length,
+        failed: parsedData.length - valid.length,
+        errors: errors.slice(0, 10) // Show only first 10 errors
       });
       setStep('result');
     } catch (error: any) {
