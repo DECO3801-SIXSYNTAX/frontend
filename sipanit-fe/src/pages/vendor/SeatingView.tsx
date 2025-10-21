@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { Search, Bell, ArrowLeft } from "lucide-react"
 import { Button } from "../../components/ui/button"
@@ -7,7 +7,7 @@ import { Stage, Layer, Rect, Circle, Text } from "react-konva"
 import {
   getVendorEvent,
   getVendorLayout,
-  getVendorGuests,
+  getVendorGuests,   // ✅ use your API
   listVendorEvents,
   type FirestoreEvent,
   type VendorLayout,
@@ -18,10 +18,12 @@ export default function SeatingView() {
   const params = useParams<{ eventId?: string }>()
   const navigate = useNavigate()
   const [eventId, setEventId] = useState<string | undefined>(params.eventId)
-  
+
   const [event, setEvent] = useState<FirestoreEvent | null>(null)
   const [layout, setLayout] = useState<VendorLayout | null>(null)
-  const [guests, setGuests] = useState<Guest[]>([])
+
+  // keep raw API guests; we’ll derive seat info below
+  const [apiGuests, setApiGuests] = useState<Guest[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
@@ -31,16 +33,13 @@ export default function SeatingView() {
   // If no eventId in URL, fetch first event and redirect
   useEffect(() => {
     const loadFirstEvent = async () => {
-      if (eventId) return // Already have eventId
-      
+      if (eventId) return
       try {
         setLoading(true)
         const events = await listVendorEvents()
-        
         if (events.length > 0) {
           const firstEventId = events[0].id
           setEventId(firstEventId)
-          // Navigate to the first event
           navigate(`/vendor/seating/${firstEventId}`, { replace: true })
         } else {
           setError("No events assigned to your vendor account.")
@@ -52,28 +51,26 @@ export default function SeatingView() {
         setLoading(false)
       }
     }
-
     loadFirstEvent()
   }, [eventId, navigate])
 
-  // Load event data when eventId is available
+  // Load event + layout + guests from your API
   useEffect(() => {
     if (!eventId) return
-
     const loadData = async () => {
       try {
         setLoading(true)
         setError(null)
-        
         const [eventData, layoutData, guestsData] = await Promise.all([
           getVendorEvent(eventId),
           getVendorLayout(eventId),
-          getVendorGuests(eventId, { limit: 200 }),
+          getVendorGuests(eventId, { limit: 500 }),
         ])
-        
         setEvent(eventData)
         setLayout(layoutData)
-        setGuests(guestsData.items || [])
+        // handle either {items: Guest[]} or Guest[]
+        const items = Array.isArray(guestsData) ? guestsData : (guestsData?.items ?? [])
+        setApiGuests(items)
       } catch (err: any) {
         console.error("Error loading event data:", err)
         setError(err?.response?.data?.detail || err?.message || "Failed to load event data")
@@ -81,22 +78,38 @@ export default function SeatingView() {
         setLoading(false)
       }
     }
-
     loadData()
   }, [eventId])
+
+  // Join: add seatId/seatName to each guest by scanning layout.elements[].assignedGuests
+  const guests = useMemo(() => {
+    if (!layout) return apiGuests
+    const byGuest = new Map<string, { seatId: string; seatName: string }[]>()
+    for (const el of layout.elements) {
+      const ids = el.assignedGuests || []
+      for (const gid of ids) {
+        const list = byGuest.get(gid) || []
+        list.push({ seatId: el.id, seatName: el.name || el.type || el.id })
+        byGuest.set(gid, list)
+      }
+    }
+    return apiGuests.map((g) => {
+      const seats = byGuest.get(g.id) || []
+      const first = seats[0]
+      return {
+        ...g,
+        seatId: first?.seatId,
+        seatName: first?.seatName,
+      } as Guest & { seatId?: string; seatName?: string }
+    })
+  }, [apiGuests, layout])
 
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       const container = document.getElementById("seating-container")
-      if (container) {
-        setStageSize({
-          width: container.offsetWidth,
-          height: 600,
-        })
-      }
+      if (container) setStageSize({ width: container.offsetWidth, height: 600 })
     }
-
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
@@ -217,7 +230,7 @@ export default function SeatingView() {
                   const fillColor = hasGuests ? "#22c55e" : "#6b7280"
                   const isVip = element.type?.toLowerCase().includes("vip")
                   const vipColor = "#3b82f6"
-                  
+
                   if (element.config?.shape === "circle" || element.type === "round-table") {
                     return (
                       <Circle
@@ -282,33 +295,31 @@ export default function SeatingView() {
               />
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-            {filteredGuests.map((guest) => (
-              <div
-                key={guest.id}
-                className="p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
-                onClick={() => setSelectedGuest(guest)}
-              >
-                <p className="font-medium text-sm">{guest.name || "No name"}</p>
-                <p className="text-xs text-gray-500">{guest.email || "No email"}</p>
-                
-                {/* ← ADD SEAT INFO */}
-                {guest.seatName && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    Seat: {guest.seatName}
-                  </p>
-                )}
-                
-                {guest.tags && guest.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {guest.tags.map((tag, idx) => (
-                      <span key={idx} className="text-xs bg-blue-100 text-blue-600 px-1 rounded">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              {filteredGuests.map((guest) => (
+                <div
+                  key={guest.id}
+                  className="p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
+                  onClick={() => setSelectedGuest(guest)}
+                >
+                  <p className="font-medium text-sm">{guest.name || "No name"}</p>
+                  <p className="text-xs text-gray-500">{guest.email || "No email"}</p>
+
+                  {/* Seat info provided by our join */}
+                  {("seatName" in guest) && (guest as any).seatName && (
+                    <p className="text-xs text-blue-600 mt-1">Seat: {(guest as any).seatName}</p>
+                  )}
+
+                  {guest.tags && guest.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {guest.tags.map((tag, idx) => (
+                        <span key={idx} className="text-xs bg-blue-100 text-blue-600 px-1 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
               {filteredGuests.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">No guests found</p>
               )}
@@ -323,7 +334,9 @@ export default function SeatingView() {
                 <p className="font-medium">{selectedGuest.name || "No name"}</p>
                 <p className="text-sm text-gray-600">{selectedGuest.email || "No email"}</p>
                 {selectedGuest.phone && <p className="text-sm text-gray-600">{selectedGuest.phone}</p>}
-                {selectedGuest.seatId && <p className="text-sm text-gray-600">Seat: {selectedGuest.seatId}</p>}
+                {("seatId" in selectedGuest) && (selectedGuest as any).seatId && (
+                  <p className="text-sm text-gray-600">Seat: {(selectedGuest as any).seatId}</p>
+                )}
                 {selectedGuest.tags && selectedGuest.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {selectedGuest.tags.map((tag, idx) => (
