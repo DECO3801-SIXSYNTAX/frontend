@@ -21,6 +21,7 @@ import {
 import { useDashboard } from '../../contexts/DashboardContext';
 import { Guest } from '../../services/GuestService'; // Keep Guest type for compatibility
 import { apiListGuests, apiCreateGuest, apiUpdateGuest, apiDeleteGuest, DjangoGuest } from '../../api/guest';
+import ImportGuestsModal from '../../components/modals/ImportGuestsModal';
 
 const GuestManagement: React.FC = () => {
   const { events, setCurrentPage } = useDashboard();
@@ -28,6 +29,7 @@ const GuestManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -435,7 +437,10 @@ const GuestManagement: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="flex space-x-2">
-              <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 Import
               </button>
@@ -957,6 +962,15 @@ const GuestManagement: React.FC = () => {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Import Guests Modal */}
+        <ImportGuestsModal 
+          isOpen={showImportModal} 
+          onClose={() => {
+            setShowImportModal(false);
+            loadGuests(); // Reload guests after import
+          }} 
+        />
           </>
         )}
       </div>
