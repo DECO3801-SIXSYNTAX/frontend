@@ -56,30 +56,51 @@ export default function SeatingView() {
 
   // Load event + layout + guests from your API
   useEffect(() => {
-    if (!eventId) return
-    const loadData = async () => {
+    if (!eventId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        setLoading(true)
-        setError(null)
-        const [eventData, layoutData, guestsData] = await Promise.all([
+        // event + layout fetch: if either fails, we show the error box (as before)
+        const [eventData, layoutData] = await Promise.all([
           getVendorEvent(eventId),
           getVendorLayout(eventId),
-          getVendorGuests(eventId, { limit: 500 }),
-        ])
-        setEvent(eventData)
-        setLayout(layoutData)
-        // handle either {items: Guest[]} or Guest[]
-        const items = Array.isArray(guestsData) ? guestsData : (guestsData?.items ?? [])
-        setApiGuests(items)
+        ]);
+        if (cancelled) return;
+        setEvent(eventData);
+        setLayout(layoutData);
       } catch (err: any) {
-        console.error("Error loading event data:", err)
-        setError(err?.response?.data?.detail || err?.message || "Failed to load event data")
-      } finally {
-        setLoading(false)
+        if (cancelled) return;
+        console.error("Error loading event/layout:", err);
+        setError(err?.response?.data?.detail || err?.message || "Failed to load event data");
+        setLoading(false);
+        return; // bail; nothing else to load
       }
-    }
-    loadData()
-  }, [eventId])
+
+      // guests fetch: DO NOT fail the whole page — tolerate 404 and just show 0 guests
+      try {
+        const guestsResp = await getVendorGuests(eventId, { limit: 500 });
+        if (cancelled) return;
+        const items = Array.isArray(guestsResp)
+          ? (guestsResp as any)
+          : (guestsResp?.items ?? []);
+        setApiGuests(items);
+      } catch (err: any) {
+        if (cancelled) return;
+        console.warn("Guests fetch failed; continuing without guests:", err?.response?.status || err);
+        setApiGuests([]); // empty list – sidebar will say “No guests found”
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [eventId]);
+
 
   // Join: add seatId/seatName to each guest by scanning layout.elements[].assignedGuests
   const guests = useMemo(() => {

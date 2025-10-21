@@ -210,12 +210,42 @@ export async function getVendorLayout(eventId: string): Promise<VendorLayout> {
 }
 
 export async function getVendorGuests(
-  eventId: string, 
+  eventId: string,
   params?: { q?: string; tags?: string[]; limit?: number; pageToken?: string }
 ): Promise<GuestsResp> {
-  const { data } = await API.get<GuestsResp>(`/api/vendor/events/${eventId}/guests`, { 
-    params, 
-    headers: auth() 
-  });
-  return data;
+  // Try /api/guests/:eventId/  (matches your django urls snippet)
+  try {
+    const { data } = await API.get<GuestsResp>(`/api/guests/${eventId}/`, {
+      params,
+      headers: auth(),
+    });
+    // normalize: some backends may return array instead of {items}
+    if (Array.isArray(data as any)) {
+      return { items: data as any, nextPageToken: null };
+    }
+    return data ?? { items: [], nextPageToken: null };
+  } catch (err: any) {
+    // If it’s a 404, try the alternate vendor route your FE used earlier
+    const status = err?.response?.status;
+    if (status !== 404) {
+      // non-404 -> rethrow
+      throw err;
+    }
+  }
+
+  // Fallback: /api/vendor/events/:eventId/guests
+  try {
+    const { data } = await API.get<GuestsResp>(
+      `/api/vendor/events/${eventId}/guests`,
+      { params, headers: auth() }
+    );
+    if (Array.isArray(data as any)) {
+      return { items: data as any, nextPageToken: null };
+    }
+    return data ?? { items: [], nextPageToken: null };
+  } catch (err: any) {
+    // Absolute fallback: don’t kill the page — return empty list
+    console.warn("getVendorGuests fallback failed:", err?.response?.status || err);
+    return { items: [], nextPageToken: null };
+  }
 }
