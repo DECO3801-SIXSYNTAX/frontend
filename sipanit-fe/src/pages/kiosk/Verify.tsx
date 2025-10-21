@@ -4,85 +4,82 @@ import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
 import { Button } from "../../components/ui/button"
-import { Loader2, CheckCircle, XCircle, User, Utensils, Heart, AlertCircle } from "lucide-react"
+import { Loader2, CheckCircle, XCircle, User, Utensils, Heart } from "lucide-react"
 
-// Mock guest data interface
+// Guest data interface based on backend structure
 interface GuestInfo {
   id: string
   name: string
-  email: string
-  eventName: string
-  dietaryRequirements: string[]
-  specialNeeds: string[]
-  allergies: string[]
-  seatNumber?: string
-  tableNumber?: string
+  phone?: string
+  dietaryRestriction?: string
+  accessibilityNeeds?: string
+  seat?: string
+  tags?: string[]
+  checkedIn?: boolean
+}
+
+interface VerifyResponse {
+  payload: {
+    e: string // event_id
+    g: string // guest_id
+  }
+  guest: GuestInfo
 }
 
 export function Verify() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = searchParams.get("token")
+  const eventId = searchParams.get("eventId")
   const [isLoading, setIsLoading] = useState(true)
   const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isCheckedIn, setIsCheckedIn] = useState(false)
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !eventId) {
       navigate("/kiosk")
       return
     }
 
-    // Simulate API call to verify QR token and get guest info
     const verifyToken = async () => {
       setIsLoading(true)
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Mock verification based on token
-      if (token === "valid" || token === "demo-token-from-upload") {
-        // Mock guest data
-        setGuestInfo({
-          id: "guest-123",
-          name: "John Doe",
-          email: "john.doe@example.com",
-          eventName: "Tech Conference 2024",
-          dietaryRequirements: ["Vegetarian", "No Dairy"],
-          specialNeeds: ["Wheelchair Access", "Large Print Materials"],
-          allergies: ["Nuts", "Shellfish"],
-          seatNumber: "A-15",
-          tableNumber: "Table 3"
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/guest/debug-decode-guest/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token })
         })
-        setError(null)
-      } else if (token === "invalid") {
-        setError("Invalid QR code. Please contact event staff.")
-      } else if (token === "expired") {
-        setError("QR code has expired. Please contact event staff.")
-      } else {
-        setError("QR code not recognized. Please contact event staff.")
+
+        if (response.ok) {
+          const data: VerifyResponse = await response.json()
+          setGuestInfo(data.guest)
+          setError(null)
+          
+          // Auto check-in after successful verification
+          setTimeout(() => {
+            setIsCheckedIn(true)
+          }, 1000)
+        } else {
+          const errorData = await response.json()
+          setError(errorData.detail || "Invalid QR code. Please contact event staff.")
+        }
+      } catch (error) {
+        console.error("Verification error:", error)
+        setError("Network error. Please try again.")
+      } finally {
+        setIsLoading(false)
       }
-      
-      setIsLoading(false)
     }
 
     verifyToken()
-  }, [token, navigate])
-
-  const handleCheckIn = async () => {
-    // Simulate check-in API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsCheckedIn(true)
-    
-    // Redirect after successful check-in
-    setTimeout(() => {
-      navigate("/kiosk")
-    }, 2000)
-  }
+  }, [token, eventId, navigate])
 
   const handleBackToScan = () => {
-    navigate("/kiosk/qr")
+    navigate(`/kiosk/qr?eventId=${eventId}&fromVerify=true`)
   }
 
   if (isLoading) {
@@ -124,8 +121,10 @@ export function Verify() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <CheckCircle className="h-16 w-16 text-green-600 mb-6" />
-            <h1 className="text-3xl font-bold text-green-900 mb-2">Check-in Complete!</h1>
-            <p className="text-green-700 text-center text-lg">Welcome to {guestInfo?.eventName}. Enjoy the event!</p>
+            <h1 className="text-3xl font-bold text-green-900 mb-2">Success! You're checked in</h1>
+            <p className="text-green-700 text-center text-lg mb-8">
+              Welcome, {guestInfo?.name}! Enjoy the event!
+            </p>
             <div className="mt-6 flex space-x-2">
               <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
               <div
@@ -137,20 +136,34 @@ export function Verify() {
                 style={{ animationDelay: "0.2s" }}
               ></div>
             </div>
+            {/* Auto redirect after 3 seconds */}
+            <div className="mt-4">
+              <p className="text-sm text-gray-600">Redirecting to kiosk...</p>
+            </div>
           </CardContent>
         </Card>
       </div>
     )
   }
 
-  // Show guest information
+  // Auto redirect after 3 seconds
+  useEffect(() => {
+    if (isCheckedIn) {
+      const timer = setTimeout(() => {
+        navigate("/kiosk")
+      }, 3000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isCheckedIn, navigate])
+
+  // Show guest information (this should not be reached due to auto check-in)
   if (guestInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-bold text-gray-900 mb-2">Welcome, {guestInfo.name}!</CardTitle>
-            <p className="text-xl text-gray-600">{guestInfo.eventName}</p>
           </CardHeader>
           
           <CardContent className="space-y-6">
@@ -165,87 +178,42 @@ export function Verify() {
                   <p className="text-sm text-gray-600">Name</p>
                   <p className="font-medium text-gray-900">{guestInfo.name}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium text-gray-900">{guestInfo.email}</p>
-                </div>
-                {guestInfo.seatNumber && (
+                {guestInfo.phone && (
                   <div>
-                    <p className="text-sm text-gray-600">Seat Number</p>
-                    <p className="font-medium text-gray-900">{guestInfo.seatNumber}</p>
+                    <p className="text-sm text-gray-600">Phone</p>
+                    <p className="font-medium text-gray-900">{guestInfo.phone}</p>
                   </div>
                 )}
-                {guestInfo.tableNumber && (
+                {guestInfo.seat && (
                   <div>
-                    <p className="text-sm text-gray-600">Table</p>
-                    <p className="font-medium text-gray-900">{guestInfo.tableNumber}</p>
+                    <p className="text-sm text-gray-600">Seat</p>
+                    <p className="font-medium text-gray-900">{guestInfo.seat}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Dietary Requirements */}
-            {guestInfo.dietaryRequirements.length > 0 && (
+            {guestInfo.dietaryRestriction && (
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex items-center mb-4">
                   <Utensils className="h-6 w-6 text-green-600 mr-3" />
                   <h3 className="text-lg font-semibold text-green-900">Dietary Requirements</h3>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {guestInfo.dietaryRequirements.map((requirement, index) => (
-                    <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {requirement}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-green-800">{guestInfo.dietaryRestriction}</p>
               </div>
             )}
 
-            {/* Special Needs */}
-            {guestInfo.specialNeeds.length > 0 && (
+            {/* Accessibility Needs */}
+            {guestInfo.accessibilityNeeds && (
               <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
                 <div className="flex items-center mb-4">
                   <Heart className="h-6 w-6 text-blue-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-blue-900">Special Needs</h3>
+                  <h3 className="text-lg font-semibold text-blue-900">Accessibility Needs</h3>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {guestInfo.specialNeeds.map((need, index) => (
-                    <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {need}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-blue-800">{guestInfo.accessibilityNeeds}</p>
               </div>
             )}
-
-            {/* Allergies */}
-            {guestInfo.allergies.length > 0 && (
-              <div className="bg-red-50 rounded-lg p-6 border border-red-200">
-                <div className="flex items-center mb-4">
-                  <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-red-900">Allergies</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {guestInfo.allergies.map((allergy, index) => (
-                    <span key={index} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {allergy}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Check-in Button */}
-            <div className="pt-6">
-              <Button 
-                onClick={handleCheckIn} 
-                size="lg" 
-                className="w-full h-16 text-xl font-semibold bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-              >
-                <CheckCircle className="mr-3 h-6 w-6" />
-                Check In
-              </Button>
-            </div>
 
             {/* Back Button */}
             <div className="pt-4">

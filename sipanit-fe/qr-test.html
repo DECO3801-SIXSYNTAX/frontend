@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Test Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .qr-section {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .qr-code {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .info {
+            flex: 1;
+        }
+        .test-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 QR Code Test Generator</h1>
+        
+        <div class="qr-section">
+            <div class="qr-code">
+                <canvas id="qrcode"></canvas>
+            </div>
+            <div class="info">
+                <h3>Test QR Code</h3>
+                <p><strong>Token:</strong> <span id="token-display">test-token-123</span></p>
+                <p><strong>URL:</strong> <span id="url-display">https://example.com?token=test-token-123</span></p>
+                <p>This QR code contains a test token that should work with your kiosk scanner.</p>
+            </div>
+        </div>
+
+        <div class="test-buttons">
+            <button onclick="generateQR('test-token-123')">Valid Token</button>
+            <button onclick="generateQR('invalid-token')">Invalid Token</button>
+            <button onclick="generateQR('expired-token')">Expired Token</button>
+            <button onclick="generateQR('test-token-456')">Another Valid Token</button>
+        </div>
+
+        <div class="instructions">
+            <h3>📱 How to Test:</h3>
+            <ol>
+                <li>Open your kiosk scanner at <code>http://localhost:5173/kiosk/qr?eventId=test-event</code></li>
+                <li>Allow camera access when prompted</li>
+                <li>Point your camera at the QR code above</li>
+                <li>The scanner should detect the QR code and navigate to the verification page</li>
+                <li>Try different test tokens using the buttons above</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function generateQR(token) {
+            const url = `https://example.com?token=${token}`;
+            
+            // Update display
+            document.getElementById('token-display').textContent = token;
+            document.getElementById('url-display').textContent = url;
+            
+            // Generate QR code
+            const canvas = document.getElementById('qrcode');
+            QRCode.toCanvas(canvas, url, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) console.error(error);
+                console.log('QR code generated for token:', token);
+            });
+        }
+
+        // Generate initial QR code
+        generateQR('test-token-123');
+    </script>
+</body>
+</html>
