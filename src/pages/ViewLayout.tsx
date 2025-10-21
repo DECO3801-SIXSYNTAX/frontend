@@ -176,7 +176,7 @@ const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
     try {
       if (editingGuest) {
         // Update existing guest
-        await dashboardService.updateGuest(editingGuest.id, guestForm);
+        await dashboardService.updateGuest(eventId, editingGuest.id, guestForm);
       } else {
         // Create new guest
         const newGuestData = {
@@ -185,8 +185,7 @@ const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
           rsvpStatus: 'pending' as const,
         };
 
-        const createdGuests = await dashboardService.importGuests([newGuestData]);
-        const newGuest = createdGuests[0];
+        const newGuest = await dashboardService.addGuest(eventId, newGuestData);
 
         // Assign to selected element
         if (selectedElement && floorPlan && newGuest) {

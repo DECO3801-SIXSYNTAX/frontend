@@ -52,35 +52,67 @@ export class DjangoAuthService {
    * Login with email/username and password
    */
   async login(usernameOrEmail: string, password: string): Promise<LoginResponse> {
-    // Try login - Django backend expects 'username' field
-    // If email is provided, try both email and username extracted from email
-    let response = await fetch(`${API_BASE}/auth/login/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username: usernameOrEmail, password }),
-    });
-
-    // If failed and input looks like email, try username part before @
-    if (!response.ok && usernameOrEmail.includes('@')) {
-      const usernameFromEmail = usernameOrEmail.split('@')[0];
-      response = await fetch(`${API_BASE}/auth/login/`, {
+    // Django authenticate() only works with username, not email
+    // Try multiple strategies:
+    
+    let lastError: any = null;
+    
+    // Strategy 1: Try as-is (might be username)
+    try {
+      const response1 = await fetch(`${API_BASE}/auth/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username: usernameFromEmail, password }),
+        body: JSON.stringify({ username: usernameOrEmail, password }),
       });
+
+      if (response1.ok) {
+        const data = await response1.json();
+        this.storeAuthData(data);
+        return data;
+      }
+      
+      const error1 = await response1.text();
+      lastError = error1;
+    } catch (err) {
+      lastError = err;
     }
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `Login failed: ${response.status}`);
+    // Strategy 2: If looks like email, try username part before @
+    if (usernameOrEmail.includes('@')) {
+      const usernameFromEmail = usernameOrEmail.split('@')[0];
+      
+      try {
+        const response2 = await fetch(`${API_BASE}/auth/login/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username: usernameFromEmail, password }),
+        });
+
+        if (response2.ok) {
+          const data = await response2.json();
+          this.storeAuthData(data);
+          return data;
+        }
+        
+        const error2 = await response2.text();
+        lastError = error2;
+      } catch (err) {
+        lastError = err;
+      }
     }
 
-    const data = await response.json();
-    
+    // All strategies failed
+    throw new Error(lastError || 'Invalid credentials');
+  }
+
+  /**
+   * Store authentication data in localStorage
+   */
+  private storeAuthData(data: LoginResponse): void {
     // Store tokens
     if (data.access) {
       localStorage.setItem('access_token', data.access);
@@ -95,8 +127,6 @@ export class DjangoAuthService {
       localStorage.setItem('userEmail', data.user.email);
       localStorage.setItem('userRole', data.user.role);
     }
-
-    return data;
   }
 
   /**

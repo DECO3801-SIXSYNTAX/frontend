@@ -1,18 +1,5 @@
 // src/services/GuestService.ts
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  serverTimestamp,
-  Timestamp
-} from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
+import axios from 'axios';
 
 export interface Guest {
   id: string;
@@ -27,159 +14,248 @@ export interface Guest {
   plusOne: boolean;
   plusOneName?: string;
   table?: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export class GuestService {
-  private getCurrentUserId(): string {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user is currently signed in');
+  private apiUrl: string;
+
+  constructor() {
+    this.apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  }
+
+  private getAuthToken(): string {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Authentication required. Please sign in.');
     }
-    return user.uid;
+    return token;
   }
 
   // Get all guests for an event
   async getGuestsByEvent(eventId: string): Promise<Guest[]> {
     try {
-      const userId = this.getCurrentUserId();
-      const guestsRef = collection(db, 'users', userId, 'events', eventId, 'guests');
-      const snapshot = await getDocs(guestsRef);
+      const token = this.getAuthToken();
+      
+      const response = await axios.get(
+        `${this.apiUrl}/api/guest/${eventId}/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Guest));
-    } catch (error) {
+      // Django returns {items: [...], nextPageToken: "..."} format
+      const items = response.data?.items || response.data;
+      const guests = Array.isArray(items) ? items : [];
+
+      console.log('✓ Fetched guests from Django:', {
+        eventId,
+        count: guests.length
+      });
+
+      return guests;
+    } catch (error: any) {
       console.error('Error fetching guests:', error);
-      throw new Error('Failed to fetch guests');
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to fetch guests');
+      }
     }
   }
 
   // Get a single guest
   async getGuest(eventId: string, guestId: string): Promise<Guest | null> {
     try {
-      const userId = this.getCurrentUserId();
-      const guestRef = doc(db, 'users', userId, 'events', eventId, 'guests', guestId);
-      const guestDoc = await getDoc(guestRef);
+      const token = this.getAuthToken();
+      
+      const response = await axios.get(
+        `${this.apiUrl}/api/guest/${eventId}/${guestId}/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      if (guestDoc.exists()) {
-        return {
-          id: guestDoc.id,
-          ...guestDoc.data()
-        } as Guest;
-      }
-
-      return null;
-    } catch (error) {
+      return response.data;
+    } catch (error: any) {
       console.error('Error fetching guest:', error);
-      throw new Error('Failed to fetch guest');
+      
+      if (error.response?.status === 404) {
+        return null;
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to fetch guest');
+      }
     }
   }
 
   // Add a new guest
-  async addGuest(eventId: string, guestData: Omit<Guest, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  async addGuest(eventId: string, guestData: Omit<Guest, 'id' | 'createdAt' | 'updatedAt'>): Promise<Guest> {
     try {
-      const userId = this.getCurrentUserId();
-      const guestsRef = collection(db, 'users', userId, 'events', eventId, 'guests');
+      const token = this.getAuthToken();
+      
+      const response = await axios.post(
+        `${this.apiUrl}/api/guest/${eventId}/`,
+        guestData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const newGuest = {
-        ...guestData,
+      console.log('✓ Created guest via Django:', {
         eventId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
+        guestId: response.data.id
+      });
 
-      const docRef = await addDoc(guestsRef, newGuest);
-      return docRef.id;
-    } catch (error) {
+      return response.data;
+    } catch (error: any) {
       console.error('Error adding guest:', error);
-      throw new Error('Failed to add guest');
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to add guest');
+      }
     }
   }
 
   // Update a guest
-  async updateGuest(eventId: string, guestId: string, guestData: Partial<Guest>): Promise<void> {
+  async updateGuest(eventId: string, guestId: string, guestData: Partial<Guest>): Promise<Guest> {
     try {
-      const userId = this.getCurrentUserId();
-      const guestRef = doc(db, 'users', userId, 'events', eventId, 'guests', guestId);
+      const token = this.getAuthToken();
+      
+      const response = await axios.patch(
+        `${this.apiUrl}/api/guest/${eventId}/${guestId}/`,
+        guestData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      await updateDoc(guestRef, {
-        ...guestData,
-        updatedAt: serverTimestamp()
+      console.log('✓ Updated guest via Django:', {
+        eventId,
+        guestId,
+        updatedFields: Object.keys(guestData)
       });
-    } catch (error) {
+
+      return response.data;
+    } catch (error: any) {
       console.error('Error updating guest:', error);
-      throw new Error('Failed to update guest');
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to update guest');
+      }
     }
   }
 
   // Delete a guest
   async deleteGuest(eventId: string, guestId: string): Promise<void> {
     try {
-      const userId = this.getCurrentUserId();
-      const guestRef = doc(db, 'users', userId, 'events', eventId, 'guests', guestId);
-      await deleteDoc(guestRef);
-    } catch (error) {
+      const token = this.getAuthToken();
+      
+      await axios.delete(
+        `${this.apiUrl}/api/guest/${eventId}/${guestId}/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✓ Deleted guest via Django:', {
+        eventId,
+        guestId
+      });
+    } catch (error: any) {
       console.error('Error deleting guest:', error);
-      throw new Error('Failed to delete guest');
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to delete guest');
+      }
     }
   }
 
-  // Bulk import guests
-  async importGuests(eventId: string, guests: Omit<Guest, 'id' | 'eventId' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
+  // Bulk import guests via CSV
+  async importGuestsCSV(eventId: string, csvFile: File): Promise<any> {
     try {
-      const userId = this.getCurrentUserId();
-      const guestsRef = collection(db, 'users', userId, 'events', eventId, 'guests');
+      const token = this.getAuthToken();
+      
+      const formData = new FormData();
+      formData.append('file', csvFile);
 
-      const promises = guests.map(guest => 
-        addDoc(guestsRef, {
-          ...guest,
-          eventId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
+      const response = await axios.post(
+        `${this.apiUrl}/api/guest/import-csv/${eventId}/`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 30000
+        }
       );
 
-      await Promise.all(promises);
-    } catch (error) {
+      console.log('✓ Imported guests from CSV via Django:', {
+        eventId,
+        fileName: csvFile.name,
+        result: response.data
+      });
+
+      return response.data;
+    } catch (error: any) {
       console.error('Error importing guests:', error);
-      throw new Error('Failed to import guests');
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to import guests');
+      }
     }
   }
 
   // Update guest RSVP status
   async updateRSVPStatus(eventId: string, guestId: string, status: 'confirmed' | 'pending' | 'declined'): Promise<void> {
-    try {
-      const userId = this.getCurrentUserId();
-      const guestRef = doc(db, 'users', userId, 'events', eventId, 'guests', guestId);
-
-      await updateDoc(guestRef, {
-        status,
-        rsvpDate: new Date().toISOString(),
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error updating RSVP status:', error);
-      throw new Error('Failed to update RSVP status');
-    }
+    await this.updateGuest(eventId, guestId, {
+      status,
+      rsvpDate: new Date().toISOString()
+    });
   }
 
   // Assign table to guest
   async assignTable(eventId: string, guestId: string, table: string): Promise<void> {
-    try {
-      const userId = this.getCurrentUserId();
-      const guestRef = doc(db, 'users', userId, 'events', eventId, 'guests', guestId);
-
-      await updateDoc(guestRef, {
-        table,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error assigning table:', error);
-      throw new Error('Failed to assign table');
-    }
+    await this.updateGuest(eventId, guestId, { table });
   }
 
   // Get guest statistics
@@ -203,6 +279,106 @@ export class GuestService {
     } catch (error) {
       console.error('Error fetching guest stats:', error);
       throw new Error('Failed to fetch guest statistics');
+    }
+  }
+
+  // Send invite to a single guest
+  async sendInvite(eventId: string, guestId: string): Promise<void> {
+    try {
+      const token = this.getAuthToken();
+      
+      await axios.post(
+        `${this.apiUrl}/api/guest/${eventId}/${guestId}/send-invite/`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✓ Sent invite via Django:', {
+        eventId,
+        guestId
+      });
+    } catch (error: any) {
+      console.error('Error sending invite:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to send invite');
+      }
+    }
+  }
+
+  // Bulk send invites
+  async bulkSendInvites(eventId: string, guestIds: string[]): Promise<void> {
+    try {
+      const token = this.getAuthToken();
+      
+      await axios.post(
+        `${this.apiUrl}/api/guest/bulk-send-invites/${eventId}/`,
+        { guest_ids: guestIds },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✓ Sent bulk invites via Django:', {
+        eventId,
+        count: guestIds.length
+      });
+    } catch (error: any) {
+      console.error('Error sending bulk invites:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to send invites');
+      }
+    }
+  }
+
+  // Get guest QR code
+  async getGuestQR(eventId: string, guestId: string): Promise<Blob> {
+    try {
+      const token = this.getAuthToken();
+      
+      const response = await axios.get(
+        `${this.apiUrl}/api/guest/qr/${eventId}/${guestId}/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          responseType: 'blob'
+        }
+      );
+
+      console.log('✓ Got QR code via Django:', {
+        eventId,
+        guestId
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting QR code:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('Failed to get QR code');
+      }
     }
   }
 }

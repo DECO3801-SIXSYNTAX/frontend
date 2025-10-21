@@ -1,4 +1,4 @@
-import type { EventItem, UserItem, GuestItem, EventStatus } from "@/types";
+import type { EventItem, UserItem, GuestItem, EventStatus, UserRole, UserStatus } from "@/types";
 import { getAuthToken, getRefreshToken, setAuthToken, AUTH_REFRESH_PATH, isAdmin } from "@/lib/auth";
 
 export const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
@@ -79,26 +79,42 @@ export const api = {
     const id = String(raw.id ?? raw.pk ?? raw.uuid ?? "");
     const name = String(raw.name ?? raw.title ?? "Untitled");
     const date = String(raw.date ?? raw.startDate ?? raw.endDate ?? raw.updatedAt ?? raw.createdAt ?? "");
-    const venue = String(raw.venue ?? raw.location ?? "");
     // Normalize status across sources: admin(Firestore): planning/active/draft; django: DRAFT/PUBLISHED
-    let s = String(raw.status ?? "").toLowerCase();
-    let status: EventStatus = "Draft";
-    if (s === "planning") status = "Planning";
-    else if (s === "active") status = "Active";
-    else if (s === "archived") status = "Archived";
-    else if (s === "published") status = "Active"; // map Published -> Active for dashboard buckets
-    else if (s === "draft" || s === "") status = "Draft";
-    // Django choices may be uppercase
-    if (s === "draft") status = "Draft";
-    if (s === "published") status = "Active";
-    if (s === "draft" || s === "published") {
-      // already handled
-    }
-    if (raw.status === "DRAFT") status = "Draft";
-    if (raw.status === "PUBLISHED") status = "Active";
+    const rawStatus = String(raw.status ?? raw.state ?? "").trim().toLowerCase();
+    const statusMap: Record<string, EventStatus> = {
+      draft: "Draft", planning: "Planning", active: "Active",
+      published: "Active", done: "Active", archived: "Archived"
+    };
+    const status: EventStatus = statusMap[rawStatus] || "Draft";
+    return {
+      id, slug: String(raw.slug ?? id), name, date,
+      venue: String(raw.venue ?? raw.venueName ?? raw.location ?? ""),
+      status, owner: String(raw.owner ?? raw.createdBy ?? "")
+    };
+  },
 
-    const owner = String(raw.owner ?? raw.createdBy ?? "");
-    return { id, slug: String(raw.slug ?? id), name, date, venue, status, owner };
+  _normalizeUser(raw: any): UserItem {
+    const id = String(raw.id ?? raw.pk ?? raw.uuid ?? "");
+    const name = String(raw.name ?? raw.first_name ?? raw.username ?? "Unknown");
+    const email = String(raw.email ?? "");
+    
+    // Normalize role: backend uses lowercase, frontend uses PascalCase
+    const rawRole = String(raw.role ?? "guest").trim().toLowerCase();
+    const roleMap: Record<string, UserRole> = {
+      admin: "Admin",
+      planner: "Planner",
+      vendor: "Vendor",
+      guest: "Guest"
+    };
+    const role: UserRole = roleMap[rawRole] || "Guest";
+    
+    // Normalize status: backend uses boolean is_active, frontend uses string
+    const isActive = typeof raw.status === 'boolean' ? raw.status : (raw.is_active ?? true);
+    const status: UserStatus = isActive ? "Active" : "Suspended";
+    
+    const lastActive = raw.lastActive ?? raw.last_login ?? raw.last_active ?? null;
+    
+    return { id, name, email, role, status, lastActive };
   },
   // Events
   listEvents: async (): Promise<EventItem[]> => {
@@ -146,18 +162,46 @@ export const api = {
   },
 
   // Users
-  listUsers: (): Promise<UserItem[]> =>
-    fetchJson<UserItem[]>(`${API_BASE}/admin/users/`),
-  inviteUser: (payload: { name: string; email: string; role: string }): Promise<UserItem> =>
-    fetchJson<UserItem>(`${API_BASE}/admin/users/`, {
+  listUsers: async (): Promise<UserItem[]> => {
+    const raw = await fetchJson<any[]>(`${API_BASE}/admin/users/`);
+    return raw.map(u => api._normalizeUser(u));
+  },
+  inviteUser: async (payload: { name: string; email: string; role: string }): Promise<UserItem> => {
+    // Convert frontend PascalCase role to backend lowercase
+    const backendPayload = {
+      ...payload,
+      role: payload.role.toLowerCase(),
+      first_name: payload.name
+    };
+    const raw = await fetchJson<any>(`${API_BASE}/admin/users/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }),
-  updateUser: (id: string, patch: Partial<Omit<UserItem, 'id'>>): Promise<UserItem> =>
-  fetchJson<UserItem>(`${API_BASE}/admin/users/${id}/`, {
+      body: JSON.stringify(backendPayload),
+    });
+    return api._normalizeUser(raw);
+  },
+  updateUser: async (id: string, patch: Partial<Omit<UserItem, 'id'>>): Promise<UserItem> => {
+    // Convert frontend format to backend format
+    const backendPatch: any = {};
+    
+    if (patch.name !== undefined) {
+      backendPatch.first_name = patch.name;
+    }
+    if (patch.role !== undefined) {
+      backendPatch.role = patch.role.toLowerCase();
+    }
+    if (patch.status !== undefined) {
+      backendPatch.is_active = patch.status === "Active";
+    }
+    if (patch.email !== undefined) {
+      backendPatch.email = patch.email;
+    }
+    
+    const raw = await fetchJson<any>(`${API_BASE}/admin/users/${id}/`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    }),
+      body: JSON.stringify(backendPatch),
+    });
+    return api._normalizeUser(raw);
+  },
 };

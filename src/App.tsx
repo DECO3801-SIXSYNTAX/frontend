@@ -18,6 +18,7 @@ import VendorDashboard from "./pages/vendor/VendorDashboard";
 import { LandingPage } from "./pages/LandingPage";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import AdminLogin from "./pages/admin/AdminLogin";
 // Planner pages
 import Dashboard from "./pages/planner/Dashboard";
 import EventsList from "./pages/planner/EventsList";
@@ -29,8 +30,6 @@ import ViewLayout from "./pages/ViewLayout";
 import ActivityLog from "./pages/planner/ActivityLog";
 import AppSettings from "./pages/AppSettings";
 import GuestManagement from "./pages/planner/GuestManagement";
-import { auth } from "./config/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import { useDashboard } from "./contexts/DashboardContext";
 
 function SignUpWrapper() {
@@ -51,15 +50,13 @@ function ViewLayoutWrapper() {
 }
 
 function Protected({ children }: { children: React.ReactNode }) {
-  const [isChecking, setIsChecking] = React.useState(true);
   const [isAuth, setIsAuth] = React.useState(false);
+  const [isChecking, setIsChecking] = React.useState(true);
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuth(!!user);
-      setIsChecking(false);
-    });
-    return () => unsubscribe();
+    const token = localStorage.getItem('access_token');
+    setIsAuth(!!token);
+    setIsChecking(false);
   }, []);
 
   if (isChecking) return <div className="p-6 text-sm text-slate-500">Loading...</div>;
@@ -70,25 +67,21 @@ function Protected({ children }: { children: React.ReactNode }) {
 function RoleGuard({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
   const { currentUser } = useDashboard();
   const [isChecking, setIsChecking] = React.useState(true);
-  const [firebaseUser, setFirebaseUser] = React.useState<any>(null);
 
   React.useEffect(() => {
-    // Check for both JWT token and Firebase auth
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setFirebaseUser(user);
-      setIsChecking(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    // Check for Django JWT token and currentUser
+    const token = localStorage.getItem('access_token');
+    setIsChecking(false);
+  }, [currentUser]);
 
   if (isChecking) return <div className="p-6 text-sm text-slate-500">Loading...</div>;
 
-  // Check if user is authenticated (has JWT token OR Firebase auth, AND has currentUser)
+  // Check if user is authenticated (has JWT token AND has currentUser)
   const token = localStorage.getItem('access_token');
-  const isAuthenticated = (token || firebaseUser) && currentUser;
+  const isAuthenticated = token && currentUser;
 
   if (!isAuthenticated) {
-    console.log('No auth - Token:', !!token, 'Firebase:', !!firebaseUser, 'CurrentUser:', !!currentUser);
+    console.log('No auth - Token:', !!token, 'CurrentUser:', !!currentUser);
     return <Navigate to="/signin" replace />;
   }
 
@@ -128,16 +121,15 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
   React.useEffect(() => {
-    // Check for JWT token OR Firebase auth
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      const token = localStorage.getItem('access_token');
-      setIsAuth((!!token || !!firebaseUser) && !!currentUser);
-      setIsChecking(false);
-    });
-    return () => unsubscribe();
+    // Check for Django JWT token
+    const token = localStorage.getItem('access_token');
+    setIsAuth(!!token && !!currentUser);
+    setIsChecking(false);
   }, [currentUser]);
 
-  const isAuthRoute = location.pathname.startsWith('/signin') || location.pathname.startsWith('/signup');
+  const isAuthRoute = location.pathname.startsWith('/signin') || 
+                       location.pathname.startsWith('/signup') || 
+                       location.pathname.startsWith('/admin/login');
   const isLandingRoute = location.pathname === '/';
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isPlannerRoute = location.pathname.startsWith('/planner');
@@ -170,6 +162,7 @@ export default function App() {
         <Routes>
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUpWrapper />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
         </Routes>
       )}
       

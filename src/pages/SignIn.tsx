@@ -14,9 +14,7 @@ import type { CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useDashboard } from "../contexts/DashboardContext";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../config/firebase";
-import { apiDjangoLogin } from "../api/auth";
+import { djangoAuth } from "../services/DjangoAuthService";
 
 const authService = new AuthService();
 
@@ -119,103 +117,48 @@ export default function SignIn() {
     showMessage("Signing you in...", "loading");
 
     try {
-      // Sign in with Django backend to get JWT tokens
-      let djangoAuthResponse;
-      try {
-        console.log('Attempting Django backend login...');
-        djangoAuthResponse = await apiDjangoLogin(email, password);
-        console.log('✓ Django backend login successful');
+      // Login with Django backend
+      console.log('Attempting Django backend login...');
+      const response = await djangoAuth.login(email, password);
+      console.log('✓ Django login successful');
 
-        // Store JWT tokens for API calls
-        localStorage.setItem('access_token', djangoAuthResponse.access);
-        localStorage.setItem('refresh_token', djangoAuthResponse.refresh);
-        console.log('✓ JWT tokens stored in localStorage');
-      } catch (djangoError: any) {
-        console.error('Django backend login error:', djangoError);
-
-        // Show specific error message from Django backend
-        if (djangoError.response?.status === 401) {
-          showMessage('Invalid email or password', 'error');
-        } else if (djangoError.response?.status === 400) {
-          showMessage('Please check your credentials', 'error');
-        } else {
-          showMessage('Login failed. Please check if backend is running.', 'error');
-        }
-        return;
-      }
-
-      // Sign in to Firebase to enable Firestore access
-      try {
-        console.log('Attempting Firebase sign-in...');
-        await signInWithEmailAndPassword(auth, email, password);
-        console.log('✓ Firebase sign-in successful');
-      } catch (firebaseError: any) {
-        console.log('Firebase sign-in error:', firebaseError.code, firebaseError.message);
-
-        // If user doesn't exist in Firebase, create them
-        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
-          try {
-            console.log('Attempting to create Firebase user...');
-            await createUserWithEmailAndPassword(auth, email, password);
-            console.log('✓ Firebase user created successfully');
-          } catch (createError: any) {
-            console.error('Firebase user creation error:', createError.code, createError.message);
-
-            // If creation fails (e.g., user exists but wrong password), show error
-            if (createError.code === 'auth/email-already-in-use') {
-              showMessage('Invalid password for existing account', 'error');
-              return;
-            } else if (createError.code === 'auth/weak-password') {
-              showMessage('Password should be at least 6 characters', 'error');
-              return;
-            } else {
-              throw createError;
-            }
-          }
-        } else {
-          throw firebaseError;
-        }
-      }
-
-      // Use user data from Django backend
-      const user = djangoAuthResponse.user;
-      const userRole = (user.role as 'admin' | 'planner' | 'vendor') || 'planner';
-      const finalUser = {
-        id: auth.currentUser?.uid || user.id,
+      const user = response.user;
+      
+      // Convert backend user to frontend format
+      const appUser = {
+        id: user.id,
         email: user.email,
-        name: user.name || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-        role: userRole,
-        password: password
+        username: user.username,
+        name: user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}`.trim()
+          : user.first_name || user.username || email.split('@')[0],
+        role: user.role,
+        company: user.company
       };
 
-      // ✅ Berhasil → tampilin success + trigger ending animation
-      showMessage(`Welcome back, ${finalUser.name}! Sign in successful.`, "success");
+      // ✅ Success → show message + trigger ending animation
+      showMessage(`Welcome back, ${appUser.name}! Sign in successful.`, "success");
 
       // Set current user in context
-      setCurrentUser(finalUser);
-      console.log('✓ Current user set in context:', finalUser);
+      setCurrentUser(appUser);
+      console.log('✓ Current user set in context:', appUser);
 
-      // Save user to localStorage for persistence
-      localStorage.setItem('user', JSON.stringify(finalUser));
-      console.log('✓ User saved to localStorage:', finalUser);
-
-      // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
+      // 🎬 Ending: delay so popup is visible, then animate out
       setTimeout(() => setExiting(true), 500);
 
       // Navigate to dashboard after animation based on user role
       setTimeout(() => {
         setCurrentPage('dashboard');
-        console.log('✓ Navigating to dashboard as:', finalUser.role);
+        console.log('✓ Navigating to dashboard as:', appUser.role);
         // Navigate based on user role
-        if (finalUser.role === 'admin') {
+        if (appUser.role === 'admin') {
           navigate('/admin');
-        } else if (finalUser.role === 'vendor') {
+        } else if (appUser.role === 'vendor') {
           navigate('/vendor');
         } else {
           navigate('/planner/dashboard');
         }
       }, 900);
-      return;
     } catch (err: any) {
       let errorMessage = "An error occurred. Please try again.";
 
@@ -248,7 +191,7 @@ export default function SignIn() {
     showMessage("Sending password reset email...", "loading");
 
     try {
-      await authService.requestPasswordReset(forgotEmail);
+      await djangoAuth.requestPasswordReset(forgotEmail);
       showMessage("If this email is registered, you will receive a password reset link shortly.", "success");
       setShowForgotPassword(false);
       setForgotEmail("");
@@ -545,53 +488,41 @@ export default function SignIn() {
 
                 <GoogleButton
                   onSuccess={async (user) => {
-                    const userName = user.email
-                      .split("@")[0]
-                      .replace(/[._]/g, " ")
-                      .replace(/\b\w/g, (l: string) => l.toUpperCase());
-
-                    // Sign in to Firebase with email (for Firestore access)
-                    // Use a default password for Google sign-ins
-                    const defaultPassword = 'google-signin-' + user.email;
+                    // Login with Google through Django backend
                     try {
-                      try {
-                        await signInWithEmailAndPassword(auth, user.email, defaultPassword);
-                      } catch (firebaseError: any) {
-                        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
-                          await createUserWithEmailAndPassword(auth, user.email, defaultPassword);
+                      const response = await djangoAuth.googleLogin(user.id, user.role);
+                      
+                      const backendUser = response.user;
+                      const userName = backendUser.first_name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+                      showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
+
+                      // Set user data from backend
+                      setCurrentUser({
+                        id: backendUser.id,
+                        email: backendUser.email,
+                        name: backendUser.first_name && backendUser.last_name 
+                          ? `${backendUser.first_name} ${backendUser.last_name}`.trim()
+                          : backendUser.first_name || backendUser.username || userName,
+                        role: backendUser.role,
+                        password: '' // No password for Google sign-in
+                      });
+
+                      // 🎬 Ending after Google success
+                      setTimeout(() => setExiting(true), 350);
+                      setTimeout(() => {
+                        setCurrentPage('dashboard');
+                        if (backendUser.role === 'admin') {
+                          navigate('/admin');
+                        } else if (backendUser.role === 'vendor') {
+                          navigate('/vendor');
+                        } else {
+                          navigate('/planner/dashboard');
                         }
-                      }
-                    } catch (err) {
-                      console.error('Firebase auth error:', err);
+                      }, 800);
+                    } catch (err: any) {
+                      showMessage(`Google sign in failed: ${err.message}`, "error");
                     }
-
-                    showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
-
-                    // Set user data from Google authentication with Firebase UID
-                    const userRole = (user.role as 'admin' | 'planner' | 'vendor') || 'planner';
-                    const googleUser = {
-                      ...user,
-                      id: auth.currentUser?.uid || user.id,
-                      role: userRole
-                    };
-                    
-                    setCurrentUser(googleUser);
-                    localStorage.setItem('user', JSON.stringify(googleUser));
-                    console.log('✓ Google user saved to localStorage:', googleUser);
-
-                    // 🎬 Ending setelah Google success
-                    setTimeout(() => setExiting(true), 350);
-                    setTimeout(() => {
-                      setCurrentPage('dashboard');
-                      // Navigate based on user role
-                      if (userRole === 'admin') {
-                        navigate('/admin');
-                      } else if (userRole === 'vendor') {
-                        navigate('/vendor');
-                      } else {
-                        navigate('/planner/dashboard');
-                      }
-                    }, 800);
                   }}
                   onError={(error) => showMessage(`Google sign in failed: ${error}`, "error")}
                 />

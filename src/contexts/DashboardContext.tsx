@@ -35,61 +35,54 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
 
   const refreshData = async () => {
     try {
-      console.log('🔄 DashboardContext: refreshData called');
-      console.log('  currentPage:', currentPage);
-      console.log('  currentUser:', currentUser);
-      
+      // Skip DashboardService for admin/vendor pages - they use their own API endpoints
       if (currentPage !== 'signin' && currentUser) {
-        console.log('  ✓ Fetching data from DashboardService...');
-        
-        const [eventsData, guestsData, teamData, activitiesData, usersData] = await Promise.all([
-          dashboardService.getEvents(),
-          dashboardService.getGuests(),
-          dashboardService.getTeamMembers(),
-          dashboardService.getActivities(),
-          dashboardService.getUsers()
-        ]);
+        // Only fetch DashboardService data for planner pages
+        if (currentUser.role === 'planner') {
+          const [eventsData, guestsData, teamData, activitiesData, usersData] = await Promise.all([
+            dashboardService.getEvents(),
+            dashboardService.getGuests(),
+            dashboardService.getTeamMembers(),
+            dashboardService.getActivities(),
+            dashboardService.getUsers()
+          ]);
 
-        console.log('  ✓ Raw events data:', eventsData);
-        console.log('  ✓ Current user company:', currentUser.company);
+          // Filter data by company for planners
+          let filteredEvents = eventsData;
+          let filteredActivities = activitiesData;
 
-        // Filter data by company for planners
-        let filteredEvents = eventsData;
-        let filteredActivities = activitiesData;
+          if (currentUser.company) {
+            // Get all users from the same company
+            const companyUserIds = usersData
+              .filter(user => user.role === 'planner' && user.company === currentUser.company)
+              .map(user => user.id);
 
-        if (currentUser.role === 'planner' && currentUser.company) {
-          console.log('  → Filtering events by company:', currentUser.company);
-          
-          // Get all users from the same company
-          const companyUserIds = usersData
-            .filter(user => user.role === 'planner' && user.company === currentUser.company)
-            .map(user => user.id);
+            // Filter events created by users in the same company
+            filteredEvents = eventsData.filter(event =>
+              companyUserIds.includes(event.createdBy)
+            );
 
-          console.log('  → Company user IDs:', companyUserIds);
+            // Filter activities by users in the same company
+            filteredActivities = activitiesData.filter(activity =>
+              companyUserIds.includes(activity.userId)
+            );
+          }
 
-          // Filter events created by users in the same company
-          filteredEvents = eventsData.filter(event =>
-            companyUserIds.includes(event.createdBy)
-          );
-
-          console.log('  → Filtered events:', filteredEvents);
-
-          // Filter activities by users in the same company
-          filteredActivities = activitiesData.filter(activity =>
-            companyUserIds.includes(activity.userId)
-          );
+          setEvents(filteredEvents);
+          setGuests(guestsData);
+          setTeamMembers(teamData);
+          setActivities(filteredActivities);
+        } else {
+          // Admin/vendor: clear planner-specific data
+          console.log('✓ Skipping DashboardService for', currentUser.role);
+          setEvents([]);
+          setGuests([]);
+          setTeamMembers([]);
+          setActivities([]);
         }
-
-        console.log('  ✓ Setting events:', filteredEvents.length, 'events');
-        setEvents(filteredEvents);
-        setGuests(guestsData);
-        setTeamMembers(teamData);
-        setActivities(filteredActivities);
-      } else {
-        console.log('  ⊘ Skipping data fetch:', currentPage === 'signin' ? 'Not signed in' : 'No current user');
       }
     } catch (error) {
-      console.error('❌ Error refreshing data:', error);
+      console.error('Error refreshing data:', error);
     }
   };
 

@@ -19,46 +19,49 @@ import { Event, Guest, TeamMember, Activity, Invitation, CreateEventForm } from 
 import axios from 'axios';
 
 export class DashboardService {
-  // Helper to get current user ID
-  private getCurrentUserId(): string {
-    // Try to get from localStorage first (more reliable after page refresh)
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+  // Helper to get current user from Django JWT or Firebase authentication
+  private getCurrentUser(): { id: string; email?: string; role?: string } | null {
+    // Try to get user from localStorage (Django JWT auth)
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
       try {
-        const user = JSON.parse(savedUser);
-        if (user.id) {
-          return user.id;
+        const user = JSON.parse(userStr);
+        if (user && user.id) {
+          return {
+            id: user.id,
+            email: user.email,
+            role: user.role
+          };
         }
-      } catch (error) {
-        console.error('Failed to parse saved user:', error);
+      } catch (e) {
+        console.error('Error parsing user from localStorage:', e);
       }
     }
-
-    // Fallback to Firebase Auth
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user is currently signed in');
+    
+    // Fallback to Firebase auth (for backward compatibility)
+    const firebaseUser = auth.currentUser;
+    if (firebaseUser) {
+      return {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || undefined,
+        role: undefined
+      };
     }
-    return user.uid;
+    
+    return null;
   }
 
-  // Helper to get current user name
-  private getCurrentUserName(): string {
-    // Try to get from localStorage first
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        if (user.name || user.email) {
-          return user.name || user.email;
-        }
-      } catch (error) {
-        console.error('Failed to parse saved user:', error);
-      }
+  // Helper to get current user ID
+  private getCurrentUserId(): string {
+    const user = this.getCurrentUser();
+    if (!user) {
+      console.error('❌ No user found in localStorage or Firebase auth');
+      console.log('localStorage user:', localStorage.getItem('user'));
+      console.log('localStorage access_token:', localStorage.getItem('access_token'));
+      throw new Error('No user is currently signed in');
     }
-
-    // Fallback to Firebase Auth
-    return auth.currentUser?.displayName || 'Current User';
+    console.log('✅ Current user:', user);
+    return user.id;
   }
 
   // Users
@@ -141,7 +144,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: this.getCurrentUserName(),
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Created event',
         details: eventData.name,
         eventId: docRef.id,
@@ -181,7 +184,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: this.getCurrentUserName(),
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Updated event',
         details: `${updates.name || 'Event'} - Updated`,
         eventId,
@@ -216,7 +219,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: this.getCurrentUserName(),
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Deleted event',
         details: event.name,
         eventId: null,
@@ -231,49 +234,83 @@ export class DashboardService {
   // Guests
   async getGuests(eventId?: string): Promise<Guest[]> {
     try {
-      const userId = this.getCurrentUserId();
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
+      if (!token) {
+        throw new Error('Authentication required. Please sign in.');
+      }
 
       if (eventId) {
-        // Get guests for specific event using nested path
-        const guestsRef = collection(db, 'users', userId, 'events', eventId, 'guests');
-        const snapshot = await getDocs(guestsRef);
+        // Get guests for specific event from Django backend
+        const response = await axios.get(
+          `${apiUrl}/api/guest/${eventId}/`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
 
-        return snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            eventId: eventId,
-            ...data,
-            importedAt: data.importedAt?.toDate?.()?.toISOString() || data.importedAt,
-          } as Guest;
+        // Django returns {items: [...], nextPageToken: "..."} format
+        const items = response.data?.items || response.data;
+        const guests = Array.isArray(items) ? items : [];
+
+        console.log('✓ Fetched guests from Django:', {
+          eventId,
+          count: guests.length,
+          responseFormat: response.data?.items ? 'paginated {items, nextPageToken}' : 'direct array',
+          hasNextPage: !!response.data?.nextPageToken
         });
+
+        return guests;
       } else {
-        // Get all guests across all events - need to iterate through events
+        // Get all guests across all events
         const events = await this.getEvents();
         const allGuests: Guest[] = [];
 
         for (const event of events) {
-          const guestsRef = collection(db, 'users', userId, 'events', event.id, 'guests');
-          const snapshot = await getDocs(guestsRef);
-          
-          const eventGuests = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              eventId: event.id,
-              ...data,
-              importedAt: data.importedAt?.toDate?.()?.toISOString() || data.importedAt,
-            } as Guest;
-          });
-
-          allGuests.push(...eventGuests);
+          try {
+            const response = await axios.get(
+              `${apiUrl}/api/guest/${event.id}/`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            
+            // Django returns {items: [...], nextPageToken: "..."} format
+            const items = response.data?.items || response.data;
+            const eventGuests = Array.isArray(items) ? items : [];
+            if (eventGuests.length > 0) {
+              allGuests.push(...eventGuests);
+            }
+          } catch (error) {
+            console.error(`Error fetching guests for event ${event.id}:`, error);
+            // Continue with other events even if one fails
+          }
         }
+
+        console.log('✓ Fetched all guests from Django:', {
+          totalEvents: events.length,
+          totalGuests: allGuests.length
+        });
 
         return allGuests;
       }
-    } catch (error) {
-      console.error('Error fetching guests:', error);
-      throw new Error('Failed to fetch guests');
+    } catch (error: any) {
+      console.error('✗ Error fetching guests:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error(error.message || 'Failed to fetch guests');
+      }
     }
   }
 
@@ -304,7 +341,7 @@ export class DashboardService {
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
       console.log('Sending import CSV file to Django backend:', {
-        url: `${apiUrl}/api/guest/${eventId}/import-csv/`,
+        url: `${apiUrl}/api/guest/import-csv/${eventId}/`,
         fileName: csvFile.name,
         fileSize: csvFile.size,
         fileType: csvFile.type,
@@ -312,7 +349,7 @@ export class DashboardService {
       });
 
       const response = await axios.post(
-        `${apiUrl}/api/guest/${eventId}/import-csv/`,
+        `${apiUrl}/api/guest/import-csv/${eventId}/`,
         formData,
         {
           headers: {
@@ -334,7 +371,7 @@ export class DashboardService {
       const importedCount = response.data.imported || 0;
       await this.logActivity({
         userId: currentUserId,
-        userName: this.getCurrentUserName(),
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Imported guests',
         details: `Imported ${importedCount} guests from ${csvFile.name}`,
         eventId: eventId,
@@ -385,7 +422,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: this.getCurrentUserName(),
+        userName: auth.currentUser?.displayName || 'Current User',
         action: 'Imported guests',
         details: `Added ${newGuests.length} guests`,
         eventId: newGuests[0]?.eventId || null,
@@ -404,32 +441,118 @@ export class DashboardService {
     }
   }
 
-  async updateGuest(guestId: string, updates: Partial<Guest>): Promise<Guest> {
+  async updateGuest(eventId: string, guestId: string, updates: Partial<Guest>): Promise<Guest> {
     try {
-      const guestRef = doc(db, 'guests', guestId);
-      await updateDoc(guestRef, updates);
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
 
-      const updatedDoc = await getDoc(guestRef);
-      const data = updatedDoc.data();
+      if (!token) {
+        throw new Error('Authentication required. Please sign in.');
+      }
 
-      return {
-        id: updatedDoc.id,
-        ...data,
-        importedAt: data?.importedAt?.toDate?.()?.toISOString() || data?.importedAt,
-      } as Guest;
-    } catch (error) {
-      console.error('Error updating guest:', error);
-      throw new Error('Failed to update guest');
+      const response = await axios.patch(
+        `${apiUrl}/api/guest/${eventId}/${guestId}/`,
+        updates,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✓ Updated guest via Django:', {
+        eventId,
+        guestId,
+        updatedFields: Object.keys(updates)
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('✗ Error updating guest:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error(error.message || 'Failed to update guest');
+      }
     }
   }
 
-  async deleteGuest(guestId: string): Promise<void> {
+  async deleteGuest(eventId: string, guestId: string): Promise<void> {
     try {
-      const guestRef = doc(db, 'guests', guestId);
-      await deleteDoc(guestRef);
-    } catch (error) {
-      console.error('Error deleting guest:', error);
-      throw new Error('Failed to delete guest');
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
+      if (!token) {
+        throw new Error('Authentication required. Please sign in.');
+      }
+
+      await axios.delete(
+        `${apiUrl}/api/guest/${eventId}/${guestId}/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✓ Deleted guest via Django:', {
+        eventId,
+        guestId
+      });
+    } catch (error: any) {
+      console.error('✗ Error deleting guest:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error(error.message || 'Failed to delete guest');
+      }
+    }
+  }
+
+  async addGuest(eventId: string, guestData: Partial<Guest>): Promise<Guest> {
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
+      if (!token) {
+        throw new Error('Authentication required. Please sign in.');
+      }
+
+      const response = await axios.post(
+        `${apiUrl}/api/guest/${eventId}/`,
+        guestData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✓ Created guest via Django:', {
+        eventId,
+        guestId: response.data.id
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('✗ Error creating guest:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error(error.message || 'Failed to create guest');
+      }
     }
   }
 
@@ -565,9 +688,22 @@ export class DashboardService {
       // Get all guests across all events for this user
       const allGuests: Guest[] = [];
       for (const event of events) {
-        const eventGuests = await this.getGuests(event.id);
-        allGuests.push(...eventGuests);
+        try {
+          const eventGuests = await this.getGuests(event.id);
+          
+          // Ensure eventGuests is an array before spreading
+          if (Array.isArray(eventGuests)) {
+            allGuests.push(...eventGuests);
+          } else {
+            console.warn(`getGuests returned non-array for event ${event.id}:`, eventGuests);
+          }
+        } catch (error) {
+          console.error(`Error fetching guests for event ${event.id}:`, error);
+          // Continue with other events
+        }
       }
+
+      console.log(`Total guests collected: ${allGuests.length}`);
 
       // Calculate statistics from actual guest data
       const totalGuests = allGuests.length;
@@ -593,7 +729,7 @@ export class DashboardService {
       // Calculate completion rate based on events
       const totalEvents = events.length;
       const completedEvents = events.filter(event =>
-        event.status === 'done' || new Date(event.endDate) < new Date()
+        event.status === 'done'
       ).length;
       const completionRate = totalEvents > 0 ? (completedEvents / totalEvents) * 100 : 0;
 

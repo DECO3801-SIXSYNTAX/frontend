@@ -34,6 +34,16 @@ const Dashboard: React.FC = () => {
     accessibilityNeeds: 0,
     completionRate: 0
   });
+  const [eventBreakdown, setEventBreakdown] = useState<Array<{
+    eventId: string;
+    eventName: string;
+    totalGuests: number;
+    assignedSeats: number;
+    dietaryNeeds: number;
+    accessibilityNeeds: number;
+    startDate: string;
+    status: string;
+  }>>([]);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const dashboardService = new DashboardService();
@@ -44,8 +54,12 @@ const Dashboard: React.FC = () => {
 
   const loadStatistics = async () => {
     try {
-      const stats = await dashboardService.getEventStatistics();
+      const [stats, breakdown] = await Promise.all([
+        dashboardService.getEventStatistics(),
+        dashboardService.getEventStatisticsBreakdown()
+      ]);
       setStatistics(stats);
+      setEventBreakdown(breakdown);
     } catch (error) {
       console.error('Error loading statistics:', error);
     }
@@ -157,7 +171,11 @@ const Dashboard: React.FC = () => {
         </motion.button>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Overall Statistics Cards */}
+      <div className="mb-2">
+        <h2 className="text-lg font-semibold text-gray-800">Overall Statistics</h2>
+        <p className="text-sm text-gray-600">Aggregated data across all events</p>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -244,6 +262,90 @@ const Dashboard: React.FC = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Event Statistics Breakdown */}
+      {eventBreakdown.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="bg-white rounded-xl shadow-sm border border-gray-200"
+        >
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Event Statistics Breakdown</h2>
+            <p className="text-sm text-gray-600 mt-1">Detailed statistics for each event</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Event Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total Guests
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assigned Seats
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dietary Needs
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Accessibility
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {eventBreakdown.map((event, index) => (
+                  <motion.tr
+                    key={event.eventId}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                    className="hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{event.eventName}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">{formatDate(event.startDate)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm font-semibold text-gray-900">{event.totalGuests}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-sm font-semibold text-gray-900">{event.assignedSeats}</span>
+                        <span className="text-xs text-gray-500">
+                          ({event.totalGuests > 0 ? Math.round((event.assignedSeats / event.totalGuests) * 100) : 0}%)
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm font-semibold text-gray-900">{event.dietaryNeeds}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm font-semibold text-gray-900">{event.accessibilityNeeds}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(event.status)}`}>
+                        {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                      </span>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
