@@ -282,25 +282,33 @@ export default function SeatingView() {
               />
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {filteredGuests.map((guest) => (
-                <div
-                  key={guest.id}
-                  className="p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
-                  onClick={() => setSelectedGuest(guest)}
-                >
-                  <p className="font-medium text-sm">{guest.name || "No name"}</p>
-                  <p className="text-xs text-gray-500">{guest.email || guest.seatId || "No details"}</p>
-                  {guest.tags && guest.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {guest.tags.map((tag, idx) => (
-                        <span key={idx} className="text-xs bg-blue-100 text-blue-600 px-1 rounded">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+            {filteredGuests.map((guest) => (
+              <div
+                key={guest.id}
+                className="p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
+                onClick={() => setSelectedGuest(guest)}
+              >
+                <p className="font-medium text-sm">{guest.name || "No name"}</p>
+                <p className="text-xs text-gray-500">{guest.email || "No email"}</p>
+                
+                {/* ← ADD SEAT INFO */}
+                {guest.seatName && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Seat: {guest.seatName}
+                  </p>
+                )}
+                
+                {guest.tags && guest.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {guest.tags.map((tag, idx) => (
+                      <span key={idx} className="text-xs bg-blue-100 text-blue-600 px-1 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
               {filteredGuests.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">No guests found</p>
               )}

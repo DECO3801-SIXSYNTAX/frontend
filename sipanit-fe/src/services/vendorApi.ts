@@ -112,6 +112,8 @@ export type Guest = {
   phone?: string;
   tags?: string[];
   seatId?: string | null;
+  seatName?: string | null;      // ← ADD
+  seatType?: string | null;      // ← ADD
   dietaryRestriction?: string;
   accessibilityNeeds?: string;
   checkedIn?: boolean;
@@ -122,42 +124,67 @@ type GuestsResp = { items: Guest[]; nextPageToken?: string | null };
 
 // Helper function to transform backend layout to FE format
 function transformLayoutForFE(backendLayout: any): VendorLayout {
-  const canvas = backendLayout.canvas || {};
-  
-  // Transform elements from Firestore structure to FE structure
-  const feElements: FELayoutElement[] = (backendLayout.elements || []).map((el: LayoutElement) => ({
-    id: el.id,
-    type: el.type,
-    x: el.geom?.x || 0,
-    y: el.geom?.y || 0,
-    width: el.geom?.width || 100,
-    height: el.geom?.height || 60,
-    rotation: el.geom?.rotation || 0,
-    capacity: el.capacity || 0,
-    name: el.name,
-    assignedGuests: el.assigned_guest_ids || [],
-    config: {
-      id: el.geom?.meta?.configId || el.type,
-      shape: el.geom?.meta?.shape || 'rounded-rect',
-      label: el.geom?.meta?.label || el.type,
-      color: el.geom?.color || '#8B5CF6',
-      textColor: el.geom?.meta?.textColor || '#FFFFFF',
-      defaultWidth: el.geom?.meta?.defaultWidth || el.geom?.width,
-      defaultHeight: el.geom?.meta?.defaultHeight || el.geom?.height,
-      defaultRadius: el.geom?.meta?.defaultRadius,
-      description: el.geom?.meta?.description || '',
-    },
-    radius: el.geom?.radius,
-  }));
+  const canvasRaw = backendLayout.canvas || {};
+  const canvas = {
+    width: canvasRaw.width ?? canvasRaw.canvasSize?.width ?? 1200,
+    height: canvasRaw.height ?? canvasRaw.canvasSize?.height ?? 800,
+    px_per_m: canvasRaw.px_per_m ?? backendLayout.pixelsPerMeter ?? 50,
+    roomBoundary: canvasRaw.roomBoundary ?? null,
+    floorplan_id: canvasRaw.floorplan_id || backendLayout.id,
+  };
+
+  const feElements: FELayoutElement[] = (backendLayout.elements || []).map((el: any) => {
+    // Support both shapes:
+    // A) { geom: {...}, assigned_guest_ids: [] }
+    // B) flat fields + config + assignedGuests
+    const geom = el.geom || {
+      x: el.x, y: el.y, width: el.width, height: el.height,
+      rotation: el.rotation, radius: el.radius, color: el.color,
+      meta: {
+        configId: el.config?.id,
+        shape: el.config?.shape,
+        label: el.config?.label,
+        textColor: el.config?.textColor,
+        defaultWidth: el.config?.defaultWidth,
+        defaultHeight: el.config?.defaultHeight,
+        defaultRadius: el.config?.defaultRadius,
+        description: el.config?.description,
+      }
+    };
+
+    const assigned = el.assigned_guest_ids || el.assignedGuests || [];
+
+    return {
+      id: el.id,
+      type: el.type,
+      x: geom?.x ?? 0,
+      y: geom?.y ?? 0,
+      width: geom?.width ?? (geom?.radius ? geom.radius * 2 : 100),
+      height: geom?.height ?? (geom?.radius ? geom.radius * 2 : 60),
+      rotation: geom?.rotation ?? 0,
+      capacity: el.capacity ?? 0,
+      name: el.name,
+      assignedGuests: assigned,
+      config: {
+        id: geom?.meta?.configId || el.config?.id || el.type,
+        shape: geom?.meta?.shape || el.config?.shape || 'rounded-rect',
+        label: geom?.meta?.label || el.config?.label || el.type,
+        color: geom?.color || el.config?.color || '#8B5CF6',
+        textColor: geom?.meta?.textColor || el.config?.textColor || '#FFFFFF',
+        defaultWidth: geom?.meta?.defaultWidth || el.config?.defaultWidth || geom?.width,
+        defaultHeight: geom?.meta?.defaultHeight || el.config?.defaultHeight || geom?.height,
+        defaultRadius: geom?.meta?.defaultRadius || el.config?.defaultRadius,
+        description: geom?.meta?.description || el.config?.description || '',
+      },
+      radius: geom?.radius,
+    };
+  });
 
   return {
     id: canvas.floorplan_id || backendLayout.id || `fp-${backendLayout.eventId}`,
-    eventId: backendLayout.eventId,
-    canvasSize: {
-      width: canvas.width || 1200,
-      height: canvas.height || 800,
-    },
-    pixelsPerMeter: canvas.px_per_m || 50,
+    eventId: backendLayout.eventId || backendLayout.event_id,
+    canvasSize: { width: canvas.width, height: canvas.height },
+    pixelsPerMeter: canvas.px_per_m ?? 50,
     elements: feElements,
     roomBoundary: canvas.roomBoundary || null,
     version: backendLayout.version || 1,
@@ -165,6 +192,7 @@ function transformLayoutForFE(backendLayout: any): VendorLayout {
     updatedAt: backendLayout.updatedAt,
   };
 }
+
 
 export async function listVendorEvents(): Promise<VendorEventCard[]> {
   const { data } = await API.get<ListEventsResp>("/api/vendor/events", { headers: auth() });
