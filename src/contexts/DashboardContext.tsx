@@ -18,9 +18,30 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
 
   const dashboardService = new DashboardService();
 
+  // Restore user from localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        console.log('✓ Restored user from localStorage:', user);
+      } catch (error) {
+        console.error('Failed to restore user from localStorage:', error);
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
+
   const refreshData = async () => {
     try {
+      console.log('🔄 DashboardContext: refreshData called');
+      console.log('  currentPage:', currentPage);
+      console.log('  currentUser:', currentUser);
+      
       if (currentPage !== 'signin' && currentUser) {
+        console.log('  ✓ Fetching data from DashboardService...');
+        
         const [eventsData, guestsData, teamData, activitiesData, usersData] = await Promise.all([
           dashboardService.getEvents(),
           dashboardService.getGuests(),
@@ -29,20 +50,29 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
           dashboardService.getUsers()
         ]);
 
+        console.log('  ✓ Raw events data:', eventsData);
+        console.log('  ✓ Current user company:', currentUser.company);
+
         // Filter data by company for planners
         let filteredEvents = eventsData;
         let filteredActivities = activitiesData;
 
         if (currentUser.role === 'planner' && currentUser.company) {
+          console.log('  → Filtering events by company:', currentUser.company);
+          
           // Get all users from the same company
           const companyUserIds = usersData
             .filter(user => user.role === 'planner' && user.company === currentUser.company)
             .map(user => user.id);
 
+          console.log('  → Company user IDs:', companyUserIds);
+
           // Filter events created by users in the same company
           filteredEvents = eventsData.filter(event =>
             companyUserIds.includes(event.createdBy)
           );
+
+          console.log('  → Filtered events:', filteredEvents);
 
           // Filter activities by users in the same company
           filteredActivities = activitiesData.filter(activity =>
@@ -50,13 +80,16 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
           );
         }
 
+        console.log('  ✓ Setting events:', filteredEvents.length, 'events');
         setEvents(filteredEvents);
         setGuests(guestsData);
         setTeamMembers(teamData);
         setActivities(filteredActivities);
+      } else {
+        console.log('  ⊘ Skipping data fetch:', currentPage === 'signin' ? 'Not signed in' : 'No current user');
       }
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error('❌ Error refreshing data:', error);
     }
   };
 

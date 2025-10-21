@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Palette,
@@ -15,7 +16,6 @@ import {
   Globe,
   Accessibility
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { SettingsService } from '../services/SettingsService';
 
@@ -33,7 +33,7 @@ interface AppSettings {
 }
 
 const AppSettings: React.FC = () => {
-  const { setCurrentPage } = useDashboard();
+  const navigate = useNavigate();
   const { settings: themeSettings, updateSettings, isDark } = useTheme();
   const [systemSettings, setSystemSettings] = useState({
     soundEnabled: true,
@@ -99,7 +99,7 @@ const AppSettings: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => setCurrentPage('dashboard')}
+            onClick={() => navigate('/planner')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
@@ -131,7 +131,10 @@ const AppSettings: React.FC = () => {
                   return (
                     <button
                       key={theme.id}
-                      onClick={() => updateSettings({ theme: theme.id as any })}
+                      type="button"
+                      onClick={() => {
+                        updateSettings({ theme: theme.id as 'light' | 'dark' | 'system' });
+                      }}
                       className={`p-3 border-2 rounded-lg flex items-center justify-center transition-colors ${
                         themeSettings.theme === theme.id
                           ? 'border-primary-500 bg-primary-50'
@@ -157,7 +160,10 @@ const AppSettings: React.FC = () => {
                   return (
                     <button
                       key={color.value}
-                      onClick={() => updateSettings({ primaryColor: color.value })}
+                      type="button"
+                      onClick={() => {
+                        updateSettings({ primaryColor: color.value });
+                      }}
                       className={`w-10 h-10 rounded-full border-4 transition-all ${
                         themeSettings.primaryColor === color.value
                           ? 'border-gray-400 scale-110'
@@ -178,7 +184,10 @@ const AppSettings: React.FC = () => {
                 {(['small', 'medium', 'large'] as const).map((size) => (
                   <button
                     key={size}
-                    onClick={() => updateSettings({ fontSize: size })}
+                    type="button"
+                    onClick={() => {
+                      updateSettings({ fontSize: size });
+                    }}
                     className={`p-3 border-2 rounded-lg text-center transition-colors capitalize ${
                       themeSettings.fontSize === size
                         ? 'border-primary-500 bg-primary-50'
@@ -200,7 +209,10 @@ const AppSettings: React.FC = () => {
                   <p className="text-sm text-gray-500">Reduce spacing and padding for more content</p>
                 </div>
                 <button
-                  onClick={() => updateSettings({ compactMode: !themeSettings.compactMode })}
+                  type="button"
+                  onClick={() => {
+                    updateSettings({ compactMode: !themeSettings.compactMode });
+                  }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     themeSettings.compactMode ? 'bg-primary-600' : 'bg-gray-200'
                   }`}

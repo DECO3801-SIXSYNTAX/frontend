@@ -21,11 +21,44 @@ import axios from 'axios';
 export class DashboardService {
   // Helper to get current user ID
   private getCurrentUserId(): string {
+    // Try to get from localStorage first (more reliable after page refresh)
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        if (user.id) {
+          return user.id;
+        }
+      } catch (error) {
+        console.error('Failed to parse saved user:', error);
+      }
+    }
+
+    // Fallback to Firebase Auth
     const user = auth.currentUser;
     if (!user) {
       throw new Error('No user is currently signed in');
     }
     return user.uid;
+  }
+
+  // Helper to get current user name
+  private getCurrentUserName(): string {
+    // Try to get from localStorage first
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        if (user.name || user.email) {
+          return user.name || user.email;
+        }
+      } catch (error) {
+        console.error('Failed to parse saved user:', error);
+      }
+    }
+
+    // Fallback to Firebase Auth
+    return auth.currentUser?.displayName || 'Current User';
   }
 
   // Users
@@ -108,7 +141,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: auth.currentUser?.displayName || 'Current User',
+        userName: this.getCurrentUserName(),
         action: 'Created event',
         details: eventData.name,
         eventId: docRef.id,
@@ -148,7 +181,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: auth.currentUser?.displayName || 'Current User',
+        userName: this.getCurrentUserName(),
         action: 'Updated event',
         details: `${updates.name || 'Event'} - Updated`,
         eventId,
@@ -173,10 +206,9 @@ export class DashboardService {
       const eventRef = doc(db, 'events', eventId);
       await deleteDoc(eventRef);
 
-      // Also delete associated guests
-      const guestsRef = collection(db, 'guests');
-      const guestsQuery = query(guestsRef, where('eventId', '==', eventId));
-      const guestsSnapshot = await getDocs(guestsQuery);
+      // Also delete associated guests from nested path
+      const guestsRef = collection(db, 'users', currentUserId, 'events', eventId, 'guests');
+      const guestsSnapshot = await getDocs(guestsRef);
 
       const deletePromises = guestsSnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
@@ -184,7 +216,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: auth.currentUser?.displayName || 'Current User',
+        userName: this.getCurrentUserName(),
         action: 'Deleted event',
         details: event.name,
         eventId: null,
@@ -199,26 +231,46 @@ export class DashboardService {
   // Guests
   async getGuests(eventId?: string): Promise<Guest[]> {
     try {
-      const guestsRef = collection(db, 'guests');
-      let q;
+      const userId = this.getCurrentUserId();
 
       if (eventId) {
-        q = query(guestsRef, where('eventId', '==', eventId));
+        // Get guests for specific event using nested path
+        const guestsRef = collection(db, 'users', userId, 'events', eventId, 'guests');
+        const snapshot = await getDocs(guestsRef);
+
+        return snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            eventId: eventId,
+            ...data,
+            importedAt: data.importedAt?.toDate?.()?.toISOString() || data.importedAt,
+          } as Guest;
+        });
       } else {
-        const userId = this.getCurrentUserId();
-        q = query(guestsRef, where('createdBy', '==', userId));
+        // Get all guests across all events - need to iterate through events
+        const events = await this.getEvents();
+        const allGuests: Guest[] = [];
+
+        for (const event of events) {
+          const guestsRef = collection(db, 'users', userId, 'events', event.id, 'guests');
+          const snapshot = await getDocs(guestsRef);
+          
+          const eventGuests = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              eventId: event.id,
+              ...data,
+              importedAt: data.importedAt?.toDate?.()?.toISOString() || data.importedAt,
+            } as Guest;
+          });
+
+          allGuests.push(...eventGuests);
+        }
+
+        return allGuests;
       }
-
-      const snapshot = await getDocs(q);
-
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          importedAt: data.importedAt?.toDate?.()?.toISOString() || data.importedAt,
-        } as Guest;
-      });
     } catch (error) {
       console.error('Error fetching guests:', error);
       throw new Error('Failed to fetch guests');
@@ -282,7 +334,7 @@ export class DashboardService {
       const importedCount = response.data.imported || 0;
       await this.logActivity({
         userId: currentUserId,
-        userName: auth.currentUser?.displayName || 'Current User',
+        userName: this.getCurrentUserName(),
         action: 'Imported guests',
         details: `Imported ${importedCount} guests from ${csvFile.name}`,
         eventId: eventId,
@@ -333,7 +385,7 @@ export class DashboardService {
       // Log activity
       await this.logActivity({
         userId: currentUserId,
-        userName: auth.currentUser?.displayName || 'Current User',
+        userName: this.getCurrentUserName(),
         action: 'Imported guests',
         details: `Added ${newGuests.length} guests`,
         eventId: newGuests[0]?.eventId || null,
@@ -505,16 +557,40 @@ export class DashboardService {
     completionRate: number;
   }> {
     try {
-      const [events, guests] = await Promise.all([
-        this.getEvents(),
-        this.getGuests()
-      ]);
+      const userId = this.getCurrentUserId();
+      
+      // Get all events for this user
+      const events = await this.getEvents();
+      
+      // Get all guests across all events for this user
+      const allGuests: Guest[] = [];
+      for (const event of events) {
+        const eventGuests = await this.getGuests(event.id);
+        allGuests.push(...eventGuests);
+      }
 
-      const totalGuests = events.reduce((sum, event) => sum + event.expectedAttendees, 0);
-      const assignedSeats = events.reduce((sum, event) => sum + event.actualAttendees, 0);
-      const dietaryNeeds = events.reduce((sum, event) => sum + event.dietaryNeeds, 0);
-      const accessibilityNeeds = events.reduce((sum, event) => sum + event.accessibilityNeeds, 0);
+      // Calculate statistics from actual guest data
+      const totalGuests = allGuests.length;
+      
+      // Count guests with assigned tables (table field is not empty/null)
+      const assignedSeats = allGuests.filter(guest => {
+        const guestAny = guest as any;
+        return guestAny.table && guestAny.table.trim() !== '';
+      }).length;
+      
+      // Count guests with dietary needs
+      const dietaryNeeds = allGuests.filter(guest => {
+        const guestAny = guest as any;
+        return guestAny.dietaryNeeds && guestAny.dietaryNeeds.trim() !== '' && guestAny.dietaryNeeds.toLowerCase() !== 'none';
+      }).length;
+      
+      // Count guests with accessibility needs
+      const accessibilityNeeds = allGuests.filter(guest => {
+        const guestAny = guest as any;
+        return guestAny.accessibility && guestAny.accessibility.trim() !== '' && guestAny.accessibility.toLowerCase() !== 'none';
+      }).length;
 
+      // Calculate completion rate based on events
       const totalEvents = events.length;
       const completedEvents = events.filter(event =>
         event.status === 'done' || new Date(event.endDate) < new Date()
@@ -537,6 +613,58 @@ export class DashboardService {
         accessibilityNeeds: 0,
         completionRate: 0
       };
+    }
+  }
+
+  // Get statistics for individual events
+  async getEventStatisticsBreakdown(): Promise<Array<{
+    eventId: string;
+    eventName: string;
+    totalGuests: number;
+    assignedSeats: number;
+    dietaryNeeds: number;
+    accessibilityNeeds: number;
+    startDate: string;
+    status: string;
+  }>> {
+    try {
+      const events = await this.getEvents();
+      
+      const breakdown = await Promise.all(
+        events.map(async (event) => {
+          const guests = await this.getGuests(event.id);
+          
+          const totalGuests = guests.length;
+          const assignedSeats = guests.filter(guest => {
+            const guestAny = guest as any;
+            return guestAny.table && guestAny.table.trim() !== '';
+          }).length;
+          const dietaryNeeds = guests.filter(guest => {
+            const guestAny = guest as any;
+            return guestAny.dietaryNeeds && guestAny.dietaryNeeds.trim() !== '' && guestAny.dietaryNeeds.toLowerCase() !== 'none';
+          }).length;
+          const accessibilityNeeds = guests.filter(guest => {
+            const guestAny = guest as any;
+            return guestAny.accessibility && guestAny.accessibility.trim() !== '' && guestAny.accessibility.toLowerCase() !== 'none';
+          }).length;
+
+          return {
+            eventId: event.id,
+            eventName: event.name,
+            totalGuests,
+            assignedSeats,
+            dietaryNeeds,
+            accessibilityNeeds,
+            startDate: event.startDate,
+            status: event.status
+          };
+        })
+      );
+
+      return breakdown;
+    } catch (error) {
+      console.error('Error calculating event breakdown:', error);
+      return [];
     }
   }
 }

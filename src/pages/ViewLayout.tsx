@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Stage, Layer, Rect, Circle, Text, Group, Line, RegularPolygon, Ellipse, Arc } from 'react-konva';
 import Konva from 'konva';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,6 +59,7 @@ interface ViewLayoutProps {
 
 const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
   const { setCurrentPage, events } = useDashboard();
+  const navigate = useNavigate();
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -499,7 +501,10 @@ const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
                 </div>
 
                 <button
-                  onClick={() => setCurrentPage(`layout-editor-${eventId}`)}
+                  onClick={() => {
+                    setCurrentPage(`layout-editor-${eventId}`);
+                    navigate(`/planner/layout-editor/${eventId}`);
+                  }}
                   className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   <Edit className="h-4 w-4 mr-2" />

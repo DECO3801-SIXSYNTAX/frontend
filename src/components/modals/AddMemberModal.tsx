@@ -80,7 +80,15 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
     setLoading(true);
     try {
       const allUsers = await dashboardService.getUsers();
-      setUsers(allUsers);
+      // Deduplicate users by ID
+      const uniqueUsers = allUsers.reduce((acc: User[], current: User) => {
+        const exists = acc.find(user => user.id === current.id);
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+      setUsers(uniqueUsers);
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {
@@ -91,8 +99,8 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const existingMemberIds = existingMembers.map(member => member.id);
   const availableUsers = users.filter(user =>
     !existingMemberIds.includes(user.id) &&
-    (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     user.email?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleAddMember = (user: User) => {
@@ -120,44 +128,51 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 overflow-y-auto"
+          onClick={onClose}
+        >
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 transition-opacity"
-              onClick={onClose}
-            >
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </motion.div>
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            />
+
+            {/* This span centers the modal vertically */}
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6"
+              onClick={(e) => e.stopPropagation()}
+              className="relative inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full"
             >
-              <div className="absolute top-0 right-0 pt-4 pr-4">
-                <button
-                  type="button"
-                  className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  onClick={onClose}
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="sm:flex sm:items-start">
-                <div className="w-full">
-                  <div className="mb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {/* Header with gradient */}
+              <div className="bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">
                       Add Team Member
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-indigo-100 mt-1">
                       Add existing users to collaborate on this event
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    className="text-white hover:text-indigo-100 transition-colors"
+                    onClick={onClose}
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-6 py-4">
+                <div className="w-full">
 
                   {/* Search */}
                   <div className="mb-6">
@@ -240,7 +255,10 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
                               </div>
                             </div>
                             <button
-                              onClick={() => handleAddMember(user)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddMember(user);
+                              }}
                               className="flex items-center px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
                             >
                               <Plus className="h-3 w-3 mr-1" />
@@ -252,13 +270,13 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
                     )}
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4">
+                  <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      Cancel
+                      Close
                     </button>
                   </div>
                 </div>

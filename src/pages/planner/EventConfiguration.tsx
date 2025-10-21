@@ -22,14 +22,14 @@ import {
   AlertCircle,
   Layout as LayoutIcon
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { Event } from '../types/dashboard';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { Event } from '../../types/dashboard';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import AddMemberModal from '../components/modals/AddMemberModal';
-import AddVersionNoteModal from '../components/modals/AddVersionNoteModal';
-import { EventConfigService, EventConfig } from '../services/EventConfigService';
+import AddMemberModal from '../../components/modals/AddMemberModal';
+import AddVersionNoteModal from '../../components/modals/AddVersionNoteModal';
+import { EventConfigService, EventConfig } from '../../services/EventConfigService';
 
 interface EventConfigurationProps {
   eventId: string;
@@ -306,7 +306,13 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
   };
 
   const handleAddMember = async (newMember: any) => {
-    if (!config) return;
+    if (!config) {
+      console.error('handleAddMember: config is null');
+      return;
+    }
+
+    console.log('handleAddMember: Adding member:', newMember);
+    console.log('handleAddMember: Current members:', config.collaboration.members);
 
     const updatedConfig = {
       ...config,
@@ -316,7 +322,14 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
       }
     };
 
-    await saveConfig(updatedConfig);
+    console.log('handleAddMember: Updated config members:', updatedConfig.collaboration.members);
+    
+    try {
+      await saveConfig(updatedConfig);
+      console.log('handleAddMember: Save successful');
+    } catch (error) {
+      console.error('handleAddMember: Save failed:', error);
+    }
   };
 
   const handleAddVersionNote = async (note: any) => {

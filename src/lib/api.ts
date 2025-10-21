@@ -6,7 +6,7 @@ export const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
-  throw new Error(text || `HTTP ${res.status}`); 
+    throw new Error(text || `HTTP ${res.status}`); 
   }
   return res.json();
 }
@@ -21,6 +21,7 @@ function withAuth(init?: RequestInit): RequestInit {
 }
 
 async function refreshAccessToken(): Promise<string | null> {
+  // Use Django JWT refresh token
   const refresh = getRefreshToken();
   if (!refresh) return null;
   try {
@@ -101,16 +102,21 @@ export const api = {
   },
   // Events
   listEvents: async (): Promise<EventItem[]> => {
-    // Try admin endpoint first; if 403, fall back to events endpoint.
+    // Try admin endpoint first (for admin users)
     const adminUrl = `${API_BASE}/admin/events/`;
-    const evUrl = `${API_BASE}/events/events/`;
     const a = await fetchMaybe<any[]>(adminUrl);
     if (a.ok) return (a.data || []).map(api._normalizeEvent);
-    if (a.status !== 403) throw new Error(a.errorText || `HTTP ${a.status}`);
-    const e = await fetchMaybe<any[]>(evUrl);
-    if (e.ok) return (e.data || []).map(api._normalizeEvent);
-    if (e.status === 403) throw new Error('Forbidden: your account lacks permission to view events. Ask an admin to grant access.');
-    throw new Error(e.errorText || `HTTP ${e.status}`);
+    
+    // If not admin (403), try event endpoint (for planners/vendors)
+    if (a.status === 403) {
+      const evUrl = `${API_BASE}/event/events/`;
+      const e = await fetchMaybe<any[]>(evUrl);
+      if (e.ok) return (e.data || []).map(api._normalizeEvent);
+      if (e.status === 403) throw new Error('Forbidden: your account lacks permission to view events. Ask an admin to grant access.');
+      throw new Error(e.errorText || `HTTP ${e.status}`);
+    }
+    
+    throw new Error(a.errorText || `HTTP ${a.status}`);
   },
   getEvent: async (id: string): Promise<EventItem> => {
     // Decide by ID shape: UUID -> Django detail; otherwise assume Firestore admin list

@@ -8,7 +8,6 @@ import {
   FileText,
   Layout as LayoutIcon,
   Settings,
-  Sliders,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -42,11 +41,11 @@ const SidebarPlanner: React.FC<SidebarPlannerProps> = ({
       active: currentPage === 'events-list'
     },
     {
-      id: 'event-settings',
-      label: 'Event Settings',
-      icon: Settings,
-      to: '/planner/event-settings',
-      active: currentPage === 'event-settings'
+      id: 'guest-management',
+      label: 'Guest Management',
+      icon: Users,
+      to: '/planner/guest-management',
+      active: currentPage === 'guest-management'
     },
     {
       id: 'activity',
@@ -62,6 +61,13 @@ const SidebarPlanner: React.FC<SidebarPlannerProps> = ({
       to: '/planner/event-list-for-layout',
       active: currentPage === 'event-list-for-layout' || currentPage.startsWith('layout-editor'),
       disabled: false
+    },
+    {
+      id: 'event-settings',
+      label: 'Event Settings',
+      icon: Settings,
+      to: '/planner/event-settings',
+      active: currentPage === 'event-settings'
     }
   ];
 
@@ -124,25 +130,6 @@ const SidebarPlanner: React.FC<SidebarPlannerProps> = ({
               </NavLink>
             );
           })}
-        </div>
-
-        {/* Divider */}
-        <div className="my-6 border-t border-gray-200"></div>
-
-        {/* Bottom section - App Settings */}
-        <div className="space-y-2">
-          <NavLink
-            to="/planner/settings"
-            className={({ isActive }) => `w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
-              isActive
-                ? 'bg-primary-50 text-primary-600 border border-primary-200'
-                : 'text-gray-700 hover:bg-gray-50 hover:text-primary-600'
-            }`}
-            title="App Settings"
-          >
-            <Sliders className={`w-5 h-5 ${isCollapsed ? 'mx-auto' : ''}`} />
-            {!isCollapsed && <span className="font-medium">App Settings</span>}
-          </NavLink>
         </div>
 
         {/* Quick Stats (when not collapsed) */}

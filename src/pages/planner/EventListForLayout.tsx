@@ -15,8 +15,8 @@ import {
   UserPlus,
   Mail
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { FloorPlanService, FloorPlan } from '../services/FloorPlanService';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { FloorPlanService, FloorPlan } from '../../services/FloorPlanService';
 
 const EventListForLayout: React.FC = () => {
   const navigate = useNavigate();

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect, Circle, Text, Transformer, Group, Line, Star, RegularPolygon, Ellipse, Arc } from 'react-konva';
 import Konva from 'konva';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Grid3X3,
@@ -34,11 +35,14 @@ import {
   Settings,
   Maximize,
   MoreVertical,
-  UserPlus
+  UserPlus,
+  Move,
+  Circle as CircleIcon
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import Layout from '../components/layout/Layout';
-import { FloorPlanService } from '../services/FloorPlanService';
+import { useDashboard } from '../../contexts/DashboardContext';
+import Layout from '../../components/layout/Layout';
+import { FloorPlanService } from '../../services/FloorPlanService';
+import { GuestService, Guest as FirebaseGuest } from '../../services/GuestService';
 
 // Configuration-based element types with realistic dimensions
 interface ElementConfig {
@@ -69,7 +73,7 @@ const ELEMENT_CONFIGS: ElementConfig[] = [
   {
     id: 'round-table',
     shape: 'circle',
-    icon: Circle,
+    icon: CircleIcon,
     label: 'Round Table',
     color: '#3B82F6',
     textColor: '#FFFFFF',
@@ -81,7 +85,7 @@ const ELEMENT_CONFIGS: ElementConfig[] = [
   {
     id: 'cocktail-table',
     shape: 'circle',
-    icon: Circle,
+    icon: CircleIcon,
     label: 'Cocktail Table',
     color: '#06B6D4',
     textColor: '#FFFFFF',
@@ -227,7 +231,11 @@ interface LayoutEditorProps {
   eventId?: string;
 }
 
-const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
+const LayoutEditor: React.FC<LayoutEditorProps> = () => {
+  const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
+  console.log('LayoutEditor - eventId from URL params:', eventId);
+  
   const { setCurrentPage } = useDashboard();
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -241,8 +249,11 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [gridSize, setGridSize] = useState(20);
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+  const [isDraggingElement, setIsDraggingElement] = useState(false);
   const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false);
   const [dragElementType, setDragElementType] = useState<string | null>(null);
+  const [isPanMode, setIsPanMode] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 2000, height: 1500 });
   const [tempCanvasSize, setTempCanvasSize] = useState({ width: 2000, height: 1500 });
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -260,33 +271,9 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
   // Layout state
   const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
 
-  // Guest management state
-  const [guests, setGuests] = useState<Guest[]>([
-    {
-      id: 'guest-1',
-      name: 'John Smith',
-      email: 'john@example.com',
-      role: 'VIP',
-      dietaryRestrictions: ['Vegan'],
-      accessibilityNeeds: []
-    },
-    {
-      id: 'guest-2',
-      name: 'Sarah Johnson',
-      email: 'sarah@example.com',
-      role: 'Speaker',
-      dietaryRestrictions: [],
-      accessibilityNeeds: ['Wheelchair']
-    },
-    {
-      id: 'guest-3',
-      name: 'Mike Wilson',
-      email: 'mike@example.com',
-      role: 'CEO',
-      dietaryRestrictions: ['Gluten-Free'],
-      accessibilityNeeds: []
-    }
-  ]);
+  // Guest management state - Start with empty, load from Firebase
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [loadingGuests, setLoadingGuests] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGuestFilter, setSelectedGuestFilter] = useState('all');
@@ -310,13 +297,83 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
 
   // Initialize FloorPlanService
   const floorPlanService = new FloorPlanService();
+  const guestService = new GuestService();
 
   // Load floor plan on mount
   useEffect(() => {
     if (eventId) {
       loadFloorPlan();
+      loadGuests();
     }
   }, [eventId]);
+
+  // Debug: Log guests whenever they change
+  useEffect(() => {
+    console.log('Guests state updated:', guests);
+    console.log('Number of guests:', guests.length);
+  }, [guests]);
+
+  // Keyboard listener for pan mode (spacebar)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isPanMode) {
+        e.preventDefault();
+        setIsPanMode(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPanMode(false);
+        setIsPanning(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isPanMode]);
+
+  const loadGuests = async () => {
+    try {
+      if (!eventId) {
+        setLoadingGuests(false);
+        return;
+      }
+
+      setLoadingGuests(true);
+      console.log('Loading guests for event:', eventId);
+      const firebaseGuests = await guestService.getGuestsByEvent(eventId);
+      console.log('Loaded guests from Firebase:', firebaseGuests);
+      
+      // Convert Firebase guests to Layout Editor format
+      const convertedGuests: Guest[] = firebaseGuests.map(fbGuest => ({
+        id: fbGuest.id,
+        name: fbGuest.name,
+        email: fbGuest.email,
+        role: 'Guest' as Guest['role'], // Default role since Firebase guests don't have this
+        dietaryRestrictions: fbGuest.dietaryNeeds ? [fbGuest.dietaryNeeds] : [],
+        accessibilityNeeds: fbGuest.accessibility ? [fbGuest.accessibility] : [],
+        tableId: fbGuest.table || undefined, // Use the table field from Firebase
+        seatNumber: undefined
+      }));
+
+      console.log('About to set guests state with:', convertedGuests);
+      setGuests(convertedGuests);
+      console.log('Converted guests for layout editor:', convertedGuests);
+      console.log('Guests state should now have', convertedGuests.length, 'guests');
+      setLoadingGuests(false);
+    } catch (error) {
+      console.error('Error loading guests:', error);
+      setGuests([]); // Set empty array on error, don't keep mock guests
+      setLoadingGuests(false);
+    }
+  };
 
   const loadFloorPlan = async () => {
     try {
@@ -768,18 +825,41 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
     setActiveGuestDropdown(null);
   };
 
-  const handleAssignGuest = (guestId: string, elementId: string) => {
-    // Remove guest from all other elements
-    setLayoutElements(elements =>
-      elements.map(el => ({
-        ...el,
-        assignedGuests: el.id === elementId
-          ? [...el.assignedGuests, guestId]
-          : el.assignedGuests.filter(id => id !== guestId)
-      }))
-    );
-    setAssigningGuestId(null);
-    setActiveGuestDropdown(null);
+  const handleAssignGuest = async (guestId: string, elementId: string) => {
+    try {
+      // Find the element to get its name for the table assignment
+      const element = layoutElements.find(el => el.id === elementId);
+      const tableName = element?.name || `Table ${elementId.slice(0, 8)}`;
+
+      // Update guest's table in Firebase
+      if (eventId) {
+        await guestService.assignTable(eventId, guestId, tableName);
+        console.log(`Assigned guest ${guestId} to table ${tableName}`);
+      }
+
+      // Update local state
+      setGuests(prevGuests =>
+        prevGuests.map(g =>
+          g.id === guestId ? { ...g, tableId: tableName } : g
+        )
+      );
+
+      // Remove guest from all other elements and add to selected element
+      setLayoutElements(elements =>
+        elements.map(el => ({
+          ...el,
+          assignedGuests: el.id === elementId
+            ? [...el.assignedGuests, guestId]
+            : el.assignedGuests.filter(id => id !== guestId)
+        }))
+      );
+      
+      setAssigningGuestId(null);
+      setActiveGuestDropdown(null);
+    } catch (error) {
+      console.error('Error assigning guest to table:', error);
+      alert('Failed to assign guest to table. Please try again.');
+    }
   };
 
   const filteredGuests = guests.filter(guest => {
@@ -835,7 +915,9 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
         rotation={element.rotation}
         draggable={mode === 'edit'}
         onClick={() => mode === 'edit' && setSelectedId(element.id)}
+        onDragStart={() => setIsDraggingElement(true)}
         onDragEnd={(e: any) => {
+          setIsDraggingElement(false);
           let newX = snapToGrid ? Math.round(e.target.x() / gridSize) * gridSize : e.target.x();
           let newY = snapToGrid ? Math.round(e.target.y() / gridSize) * gridSize : e.target.y();
 
@@ -1181,7 +1263,19 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                 </div>
 
                 {/* Guest List */}
-                <div className="space-y-2">
+                {loadingGuests ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-500">Loading guests...</p>
+                  </div>
+                ) : guests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-700 font-medium">No guests yet</p>
+                    <p className="text-xs text-gray-500 mt-1">Add guests in Guest Management</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                   {filteredGuests.map(guest => (
                     <div
                       key={guest.id}
@@ -1249,6 +1343,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -1271,7 +1366,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
               )}
 
               <button
-                onClick={() => setCurrentPage('event-settings')}
+                onClick={() => navigate('/planner/event-list-for-layout')}
                 className="flex items-center text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1312,6 +1407,14 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
                   <ZoomIn className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Pan Mode Indicator */}
+              {isPanMode && (
+                <div className="flex items-center space-x-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium">
+                  <Move className="h-4 w-4" />
+                  <span>Pan Mode (Hold Space)</span>
+                </div>
+              )}
 
               <button
                 onClick={() => setShowGrid(!showGrid)}
@@ -1445,8 +1548,10 @@ const LayoutEditor: React.FC<LayoutEditorProps> = ({ eventId }) => {
             x={stagePosition.x}
             y={stagePosition.y}
             onWheel={handleWheel}
-            draggable={mode === 'edit' && !isDrawingRoom}
+            draggable={isPanMode || mode === 'preview'}
+            onDragStart={() => setIsPanning(true)}
             onDragEnd={(e: any) => {
+              setIsPanning(false);
               const newPos = { x: e.target.x(), y: e.target.y() };
               const constrainedPos = constrainStagePosition(newPos, stageScale);
               setStagePosition(constrainedPos);

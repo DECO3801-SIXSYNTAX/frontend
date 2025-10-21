@@ -19,15 +19,16 @@ import { LandingPage } from "./pages/LandingPage";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 // Planner pages
-import Dashboard from "./pages/Dashboard";
-import EventsList from "./pages/EventsList";
-import EventSettings from "./pages/EventSettings";
-import EventConfiguration from "./pages/EventConfiguration";
-import EventListForLayout from "./pages/EventListForLayout";
-import LayoutEditor from "./pages/LayoutEditor";
+import Dashboard from "./pages/planner/Dashboard";
+import EventsList from "./pages/planner/EventsList";
+import EventSettings from "./pages/planner/EventSettings";
+import EventConfiguration from "./pages/planner/EventConfiguration";
+import EventListForLayout from "./pages/planner/EventListForLayout";
+import LayoutEditor from "./pages/planner/LayoutEditor";
 import ViewLayout from "./pages/ViewLayout";
-import ActivityLog from "./pages/ActivityLog";
+import ActivityLog from "./pages/planner/ActivityLog";
 import AppSettings from "./pages/AppSettings";
+import GuestManagement from "./pages/planner/GuestManagement";
 import { auth } from "./config/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useDashboard } from "./contexts/DashboardContext";
@@ -193,6 +194,7 @@ export default function App() {
                 <Route path="/planner" element={<PlannerOnly><Dashboard /></PlannerOnly>} />
                 <Route path="/planner/dashboard" element={<PlannerOnly><Dashboard /></PlannerOnly>} />
                 <Route path="/planner/events" element={<PlannerOnly><EventsList /></PlannerOnly>} />
+                <Route path="/planner/guest-management" element={<PlannerOnly><GuestManagement /></PlannerOnly>} />
                 <Route path="/planner/event-settings" element={<PlannerOnly><EventSettings /></PlannerOnly>} />
                 <Route path="/planner/event-config/:eventId" element={<PlannerOnly><EventConfigurationWrapper /></PlannerOnly>} />
                 <Route path="/planner/event-list-for-layout" element={<PlannerOnly><EventListForLayout /></PlannerOnly>} />

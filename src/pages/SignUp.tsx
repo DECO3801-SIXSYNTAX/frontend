@@ -107,20 +107,60 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
     showMessage("Creating your account...", "loading");
 
     try {
-      const newUser = await authService.signUp(formData);
-      showMessage(
-        `Welcome ${newUser.name}! Your account has been created successfully. Redirecting to sign in...`,
-        "success"
-      );
+      let firebaseUser;
+      let firebaseUserExists = false;
+      
+      // Step 1: Try to create user in Firebase (for Firebase Auth & optional Google OAuth)
+      try {
+        firebaseUser = await authService.signUp(formData);
+      } catch (firebaseErr: any) {
+        // If user already exists in Firebase, that's okay - we'll just create in Django
+        if (firebaseErr.message === "User with this email already exists") {
+          firebaseUserExists = true;
+          console.log("User already exists in Firebase, will create in Django only");
+        } else {
+          // For other Firebase errors, throw them
+          throw firebaseErr;
+        }
+      }
+      
+      // Step 2: Create user in Django backend (for JWT authentication)
+      const { apiCreateUser } = await import('../api/auth');
+      await apiCreateUser(formData);
+      
+      if (firebaseUserExists) {
+        showMessage(
+          `Welcome back! Your Django account has been created. You can now sign in.`,
+          "success"
+        );
+      } else {
+        showMessage(
+          `Welcome ${firebaseUser?.name || formData.name}! Your account has been created successfully. Redirecting to sign in...`,
+          "success"
+        );
+      }
 
       setTimeout(() => {
         onBackToSignIn();
       }, 2000);
     } catch (err: any) {
       let errorMessage = "Registration failed. Please try again.";
-      if (err.message === "User with this email already exists") {
+      
+      // Check for Django-specific errors
+      if (err.response?.data) {
+        const djangoError = err.response.data;
+        if (djangoError.email) {
+          errorMessage = `Email: ${djangoError.email[0]}`;
+        } else if (djangoError.username) {
+          errorMessage = `Username: ${djangoError.username[0]}`;
+        } else if (djangoError.detail) {
+          errorMessage = djangoError.detail;
+        } else if (djangoError.non_field_errors) {
+          errorMessage = djangoError.non_field_errors[0];
+        }
+      } else if (err.message === "User with this email already exists") {
         errorMessage =
-          "An account with this email already exists. Please use a different email or sign in.";
+          "An account with this email already exists in both Firebase and Django. Please sign in instead.";
       } else if (err.message.includes("network")) {
         errorMessage =
           "Connection error. Please check your internet and try again.";

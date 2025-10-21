@@ -14,12 +14,12 @@ import {
   TrendingUp,
   Activity
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { DashboardService } from '../services/DashboardService';
-import CreateEventModal from '../components/modals/CreateEventModal';
-import ImportGuestsModal from '../components/modals/ImportGuestsModal';
-import InviteTeamModal from '../components/modals/InviteTeamModal';
-import { Event, EventStatistics } from '../types/dashboard';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { DashboardService } from '../../services/DashboardService';
+import CreateEventModal from '../../components/modals/CreateEventModal';
+import ImportGuestsModal from '../../components/modals/ImportGuestsModal';
+import InviteTeamModal from '../../components/modals/InviteTeamModal';
+import { Event, EventStatistics } from '../../types/dashboard';
 
 const Dashboard: React.FC = () => {
   const { events, activities, refreshData, currentUser, setCurrentPage } = useDashboard();

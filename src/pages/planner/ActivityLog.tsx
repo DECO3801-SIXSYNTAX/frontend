@@ -13,8 +13,8 @@ import {
   Eye,
   Download
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { Activity as ActivityType } from '../types/dashboard';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { Activity as ActivityType } from '../../types/dashboard';
 
 const ActivityLog: React.FC = () => {
   const { activities, setCurrentPage, teamMembers, events } = useDashboard();

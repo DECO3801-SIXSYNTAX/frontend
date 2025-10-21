@@ -17,10 +17,10 @@ import {
   DollarSign,
   Clock
 } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { DashboardService } from '../services/DashboardService';
-import CreateEventModal from '../components/modals/CreateEventModal';
-import { Event } from '../types/dashboard';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { DashboardService } from '../../services/DashboardService';
+import CreateEventModal from '../../components/modals/CreateEventModal';
+import { Event } from '../../types/dashboard';
 
 const EventsList: React.FC = () => {
   const { events, setCurrentPage, refreshData, currentUser } = useDashboard();

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Filter, Settings, Calendar, MapPin, Users, Clock } from 'lucide-react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { Event } from '../types/dashboard';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { Event } from '../../types/dashboard';
 
 const EventSettings: React.FC = () => {
-  const { events, setCurrentPage } = useDashboard();
+  const { events } = useDashboard();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -30,7 +32,7 @@ const EventSettings: React.FC = () => {
 
   const handleEventSelect = (event: Event) => {
     // Navigate to individual event settings page
-    setCurrentPage(`event-config-${event.id}`);
+    navigate(`/planner/event-config/${event.id}`);
   };
 
   return (
@@ -39,7 +41,7 @@ const EventSettings: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => setCurrentPage('dashboard')}
+            onClick={() => navigate('/planner')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
