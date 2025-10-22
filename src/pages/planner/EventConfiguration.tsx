@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -20,7 +21,8 @@ import {
   Palette,
   CheckCircle,
   AlertCircle,
-  Layout as LayoutIcon
+  Layout as LayoutIcon,
+  Smartphone
 } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { Event } from '../../types/dashboard';
@@ -36,6 +38,7 @@ interface EventConfigurationProps {
 }
 
 const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
+  const navigate = useNavigate();
   const { events, setCurrentPage } = useDashboard();
   const [activeTab, setActiveTab] = useState('general');
   const [event, setEvent] = useState<Event | null>(null);
@@ -452,7 +455,16 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
             >
               {/* Event Information */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Event Information</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Event Information</h2>
+                  <button
+                    onClick={() => navigate(`/kiosk/welcome?eventId=${eventId}`)}
+                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Smartphone className="h-4 w-4 mr-2" />
+                    Open Kiosk
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Event Name</label>

@@ -36,6 +36,11 @@ import { useDashboard } from "./contexts/DashboardContext";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
 import SeatingView from "./pages/vendor/SeatingView";
 import EventList from "./pages/vendor/EventList";
+// Kiosk pages
+import { Welcome } from "./pages/kiosk/Welcome";
+import { QrScan } from "./pages/kiosk/QrScan";
+import { Verify } from "./pages/kiosk/Verify";
+import { SeatView } from "./pages/kiosk/SeatView";
 
 
 function SignUpWrapper() {
@@ -140,6 +145,7 @@ export default function App() {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isPlannerRoute = location.pathname.startsWith('/planner');
   const isVendorRoute = location.pathname.startsWith('/vendor');
+  const isKioskRoute = location.pathname.startsWith('/kiosk');
   
   // Layout editor and view layout should be full screen (no sidebar)
   const isLayoutEditorRoute = location.pathname.includes('/layout-editor/') || location.pathname.includes('/view-layout/');
@@ -204,6 +210,19 @@ export default function App() {
             </main>
             <FooterPlanner />
           </div>
+        </div>
+      )}
+      
+      {/* Kiosk layout - Full screen (no nav, no sidebar) */}
+      {isKioskRoute && (
+        <div className="min-h-screen">
+          <Routes>
+            <Route path="/kiosk/welcome" element={<Welcome />} />
+            <Route path="/kiosk/qr" element={<QrScan />} />
+            <Route path="/kiosk/verify" element={<Verify />} />
+            <Route path="/kiosk/seat" element={<SeatView />} />
+            <Route path="/kiosk/*" element={<Navigate to="/kiosk/welcome" replace />} />
+          </Routes>
         </div>
       )}
       
