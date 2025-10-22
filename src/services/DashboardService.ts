@@ -79,25 +79,67 @@ export class DashboardService {
   // Events
   async getEvents(): Promise<Event[]> {
     try {
-      const userId = this.getCurrentUserId();
-      const eventsRef = collection(db, 'events');
-      const q = query(eventsRef, where('createdBy', '==', userId), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No access token found');
+        return [];
+      }
 
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-          startDate: data.startDate,
-          endDate: data.endDate,
-        } as Event;
+      // Use Django API instead of Firestore
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      // Try admin endpoint first
+      let response = await fetch(`${apiUrl}/api/admin/events/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+
+      // If 403 (not admin), try regular event endpoint
+      if (response.status === 403) {
+        response = await fetch(`${apiUrl}/api/event/`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✓ Fetched events from Django:', data);
+      
+      // Transform the data to match Event interface
+      return (Array.isArray(data) ? data : []).map((event: any) => ({
+        id: event.id,
+        name: event.name || event.title || '',
+        description: event.description || '',
+        type: event.type || event.eventType || '',
+        startDate: event.startDate || event.startsAt || event.date || '',
+        endDate: event.endDate || event.endsAt || '',
+        venue: event.venue || event.venueName || '',
+        address: event.address || event.venueAddress || '',
+        capacity: event.capacity || event.maxGuests || 0,
+        expectedAttendees: event.expectedAttendees || event.expectedGuests || 0,
+        actualAttendees: event.actualAttendees || 0,
+        budget: event.budget || 0,
+        dietaryNeeds: event.dietaryNeeds || 0,
+        accessibilityNeeds: event.accessibilityNeeds || 0,
+        status: event.status || 'DRAFT',
+        createdBy: event.createdBy || '',
+        createdAt: event.createdAt || '',
+        updatedAt: event.updatedAt || '',
+        tags: event.tags || [],
+        priority: event.priority || 'medium',
+        notes: event.notes || '',
+      }));
     } catch (error) {
       console.error('Error fetching events:', error);
-      throw new Error('Failed to fetch events');
+      return [];
     }
   }
 
@@ -244,7 +286,7 @@ export class DashboardService {
       if (eventId) {
         // Get guests for specific event from Django backend
         const response = await axios.get(
-          `${apiUrl}/api/guest/${eventId}/`,
+          `${apiUrl}/api/guests/${eventId}/`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -273,7 +315,7 @@ export class DashboardService {
         for (const event of events) {
           try {
             const response = await axios.get(
-              `${apiUrl}/api/guest/${event.id}/`,
+              `${apiUrl}/api/guests/${event.id}/`,
               {
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -341,7 +383,7 @@ export class DashboardService {
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
       console.log('Sending import CSV file to Django backend:', {
-        url: `${apiUrl}/api/guest/import-csv/${eventId}/`,
+        url: `${apiUrl}/api/guests/import-csv/${eventId}/`,
         fileName: csvFile.name,
         fileSize: csvFile.size,
         fileType: csvFile.type,
@@ -349,7 +391,7 @@ export class DashboardService {
       });
 
       const response = await axios.post(
-        `${apiUrl}/api/guest/import-csv/${eventId}/`,
+        `${apiUrl}/api/guests/import-csv/${eventId}/`,
         formData,
         {
           headers: {
@@ -451,7 +493,7 @@ export class DashboardService {
       }
 
       const response = await axios.patch(
-        `${apiUrl}/api/guest/${eventId}/${guestId}/`,
+        `${apiUrl}/api/guests/${eventId}/${guestId}/`,
         updates,
         {
           headers: {
@@ -491,7 +533,7 @@ export class DashboardService {
       }
 
       await axios.delete(
-        `${apiUrl}/api/guest/${eventId}/${guestId}/`,
+        `${apiUrl}/api/guests/${eventId}/${guestId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -527,7 +569,7 @@ export class DashboardService {
       }
 
       const response = await axios.post(
-        `${apiUrl}/api/guest/${eventId}/`,
+        `${apiUrl}/api/guests/${eventId}/`,
         guestData,
         {
           headers: {

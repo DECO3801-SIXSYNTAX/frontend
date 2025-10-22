@@ -5,17 +5,18 @@ import TopbarAdmin from "./components/layout/TopbarAdmin";
 import SidebarPlanner from "./components/layout/SidebarPlanner";
 import NavbarPlanner from "./components/layout/NavbarPlanner";
 import FooterPlanner from "./components/layout/FooterPlanner";
-import SidebarVendor from "./components/layout/SidebarVendor";
-import TopbarVendor from "./components/layout/TopbarVendor";
+import DashboardHeader from "./components/layout/DashboardHeader";
+import DashboardSidebar from "./components/layout/DashboardSidebar";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
+// Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ViewEvents from "./pages/admin/ViewEvents";
 import ManageUsers from "./pages/admin/ManageUsers";
 import EventOverview from "./pages/admin/EventOverview";
-import PlannerDashboard from "./pages/planner/PlannerDashboard";
-import VendorDashboard from "./pages/vendor/VendorDashboard";
-import { LandingPage } from "./pages/LandingPage";
+//Landing page
+import LandingPage  from "./pages/LandingPage";
+// Auth pages
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -31,6 +32,11 @@ import ActivityLog from "./pages/planner/ActivityLog";
 import AppSettings from "./pages/AppSettings";
 import GuestManagement from "./pages/planner/GuestManagement";
 import { useDashboard } from "./contexts/DashboardContext";
+// Vendor pages
+import VendorDashboard from "./pages/vendor/VendorDashboard";
+import SeatingView from "./pages/vendor/SeatingView";
+import EventList from "./pages/vendor/EventList";
+
 
 function SignUpWrapper() {
   const navigate = useNavigate();
@@ -205,10 +211,10 @@ export default function App() {
       {(isAdminRoute || isVendorRoute) && (
         <>
           {isAdminRoute && <TopbarAdmin />}
-          {isVendorRoute && <TopbarVendor />}
+          {isVendorRoute && <DashboardHeader />}
           <div className="flex">
             {isAdminRoute && <SidebarAdmin isCollapsed={sidebarCollapsed} setIsCollapsed={setSidebarCollapsed} />}
-            {isVendorRoute && <SidebarVendor isCollapsed={sidebarCollapsed} setIsCollapsed={setSidebarCollapsed} />}
+            {isVendorRoute && <DashboardSidebar isCollapsed={sidebarCollapsed} setIsCollapsed={setSidebarCollapsed} />}
             <main className="flex-1 p-6">
               <Routes>
                 {/* Legacy route redirect */}
@@ -222,6 +228,8 @@ export default function App() {
                 
                 {/* Vendor Routes */}
                 <Route path="/vendor" element={<VendorOnly><VendorDashboard /></VendorOnly>} />
+                <Route path="/vendor/events" element={<VendorOnly><EventList /></VendorOnly>} />
+                <Route path="/vendor/seating" element={<VendorOnly><SeatingView /></VendorOnly>} />
                 
                 <Route path="*" element={<div>Not Found</div>} />
               </Routes>

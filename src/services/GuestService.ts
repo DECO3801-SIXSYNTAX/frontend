@@ -14,6 +14,7 @@ export interface Guest {
   plusOne: boolean;
   plusOneName?: string;
   table?: string;
+  seat?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -39,7 +40,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       const response = await axios.get(
-        `${this.apiUrl}/api/guest/${eventId}/`,
+        `${this.apiUrl}/api/guests/${eventId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -77,7 +78,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       const response = await axios.get(
-        `${this.apiUrl}/api/guest/${eventId}/${guestId}/`,
+        `${this.apiUrl}/api/guests/${eventId}/${guestId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -108,7 +109,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       const response = await axios.post(
-        `${this.apiUrl}/api/guest/${eventId}/`,
+        `${this.apiUrl}/api/guests/${eventId}/`,
         guestData,
         {
           headers: {
@@ -143,7 +144,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       const response = await axios.patch(
-        `${this.apiUrl}/api/guest/${eventId}/${guestId}/`,
+        `${this.apiUrl}/api/guests/${eventId}/${guestId}/`,
         guestData,
         {
           headers: {
@@ -179,7 +180,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       await axios.delete(
-        `${this.apiUrl}/api/guest/${eventId}/${guestId}/`,
+        `${this.apiUrl}/api/guests/${eventId}/${guestId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -214,7 +215,7 @@ export class GuestService {
       formData.append('file', csvFile);
 
       const response = await axios.post(
-        `${this.apiUrl}/api/guest/import-csv/${eventId}/`,
+        `${this.apiUrl}/api/guests/import-csv/${eventId}/`,
         formData,
         {
           headers: {
@@ -255,7 +256,8 @@ export class GuestService {
 
   // Assign table to guest
   async assignTable(eventId: string, guestId: string, table: string): Promise<void> {
-    await this.updateGuest(eventId, guestId, { table });
+    // Backend expects 'seat' field, not 'table'
+    await this.updateGuest(eventId, guestId, { seat: table });
   }
 
   // Get guest statistics
@@ -288,7 +290,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       await axios.post(
-        `${this.apiUrl}/api/guest/${eventId}/${guestId}/send-invite/`,
+        `${this.apiUrl}/api/guests/${eventId}/${guestId}/send-invite/`,
         {},
         {
           headers: {
@@ -321,7 +323,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       await axios.post(
-        `${this.apiUrl}/api/guest/bulk-send-invites/${eventId}/`,
+        `${this.apiUrl}/api/guests/bulk-send-invites/${eventId}/`,
         { guest_ids: guestIds },
         {
           headers: {
@@ -354,7 +356,7 @@ export class GuestService {
       const token = this.getAuthToken();
       
       const response = await axios.get(
-        `${this.apiUrl}/api/guest/qr/${eventId}/${guestId}/`,
+        `${this.apiUrl}/api/guests/qr/${eventId}/${guestId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`

@@ -15,13 +15,16 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
   const [guests, setGuests] = useState<Guest[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const dashboardService = new DashboardService();
 
-  // Restore user from localStorage on mount
+  // Always restore user from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const token = localStorage.getItem('access_token');
+    
+    if (savedUser && token) {
       try {
         const user = JSON.parse(savedUser);
         setCurrentUser(user);
@@ -29,65 +32,114 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       } catch (error) {
         console.error('Failed to restore user from localStorage:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('access_token');
+        setCurrentUser(null);
+        // Only redirect if we're not on public pages
+        const publicPaths = ['/', '/signin', '/signup', '/admin/login'];
+        if (!publicPaths.includes(window.location.pathname)) {
+          window.location.href = '/signin';
+        }
+      }
+    } else {
+      setCurrentUser(null);
+      // Only redirect if we're not on public pages
+      const publicPaths = ['/', '/signin', '/signup', '/admin/login'];
+      if (!publicPaths.includes(window.location.pathname)) {
+        window.location.href = '/signin';
       }
     }
+    setIsLoading(false);
   }, []);
 
   const refreshData = async () => {
+    // Skip if no user or not a planner
+    if (!currentUser || currentUser.role !== 'planner') {
+      console.log('⊘ Skipping data refresh - User:', currentUser?.email, 'Role:', currentUser?.role);
+      setEvents([]);
+      setGuests([]);
+      setTeamMembers([]);
+      setActivities([]);
+      return;
+    }
+
     try {
-      // Skip DashboardService for admin/vendor pages - they use their own API endpoints
-      if (currentPage !== 'signin' && currentUser) {
-        // Only fetch DashboardService data for planner pages
-        if (currentUser.role === 'planner') {
-          const [eventsData, guestsData, teamData, activitiesData, usersData] = await Promise.all([
-            dashboardService.getEvents(),
-            dashboardService.getGuests(),
-            dashboardService.getTeamMembers(),
-            dashboardService.getActivities(),
-            dashboardService.getUsers()
-          ]);
+      console.log('↻ Refreshing data for planner:', currentUser.email);
+      setIsLoading(true);
+      
+      const [eventsData, guestsData, teamData, activitiesData, usersData] = await Promise.all([
+        dashboardService.getEvents(),
+        dashboardService.getGuests(),
+        dashboardService.getTeamMembers(),
+        dashboardService.getActivities(),
+        dashboardService.getUsers()
+      ]);
 
-          // Filter data by company for planners
-          let filteredEvents = eventsData;
-          let filteredActivities = activitiesData;
+      console.log('✓ Raw data fetched:', {
+        events: eventsData.length,
+        guests: guestsData.length,
+        team: teamData.length,
+        activities: activitiesData.length,
+        users: usersData.length
+      });
 
-          if (currentUser.company) {
-            // Get all users from the same company
-            const companyUserIds = usersData
-              .filter(user => user.role === 'planner' && user.company === currentUser.company)
-              .map(user => user.id);
+      // Filter data by company for planners
+      let filteredEvents = eventsData;
+      let filteredActivities = activitiesData;
 
-            // Filter events created by users in the same company
-            filteredEvents = eventsData.filter(event =>
-              companyUserIds.includes(event.createdBy)
-            );
+      if (currentUser.company) {
+        console.log('→ Filtering by company:', currentUser.company);
+        
+        // Get all users from the same company
+        const companyUserIds = usersData
+          .filter(user => user.role === 'planner' && user.company === currentUser.company)
+          .map(user => user.id);
 
-            // Filter activities by users in the same company
-            filteredActivities = activitiesData.filter(activity =>
-              companyUserIds.includes(activity.userId)
-            );
-          }
+        console.log('→ Company user IDs:', companyUserIds);
 
-          setEvents(filteredEvents);
-          setGuests(guestsData);
-          setTeamMembers(teamData);
-          setActivities(filteredActivities);
-        } else {
-          // Admin/vendor: clear planner-specific data
-          console.log('✓ Skipping DashboardService for', currentUser.role);
-          setEvents([]);
-          setGuests([]);
-          setTeamMembers([]);
-          setActivities([]);
-        }
+        // Filter events created by users in the same company
+        filteredEvents = eventsData.filter(event =>
+          companyUserIds.includes(event.createdBy)
+        );
+
+        // Filter activities by users in the same company
+        filteredActivities = activitiesData.filter(activity =>
+          companyUserIds.includes(activity.userId)
+        );
       }
+
+      console.log('✓ Filtered data:', {
+        events: filteredEvents.length,
+        guests: guestsData.length,
+        team: teamData.length,
+        activities: filteredActivities.length
+      });
+
+      setEvents(filteredEvents);
+      setGuests(guestsData);
+      setTeamMembers(teamData);
+      setActivities(filteredActivities);
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error('✗ Error refreshing data:', error);
+      setIsLoading(false);
+      // Don't clear data on error, keep existing data
     }
   };
 
+  // Refresh data when currentUser changes (including initial load)
   useEffect(() => {
-    refreshData();
+    if (currentUser && currentUser.role === 'planner') {
+      console.log('→ User loaded, refreshing data...');
+      refreshData();
+    }
+  }, [currentUser]);
+
+  // Also refresh when currentPage changes (for navigation)
+  useEffect(() => {
+    if (currentPage !== 'signin' && currentUser && currentUser.role === 'planner') {
+      console.log('→ Page changed to:', currentPage);
+      refreshData();
+    }
   }, [currentPage]);
 
   const value: DashboardContextType = {
@@ -105,6 +157,13 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     setActivities,
     refreshData
   };
+
+  // Don't render children until initial load is complete
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-sm text-slate-500">Loading...</div>
+    </div>;
+  }
 
   return (
     <DashboardContext.Provider value={value}>
