@@ -126,10 +126,11 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
         hasCredential: !!response.credential,
         credentialLength: response.credential?.length,
         selectBy: response.select_by,
-        role: role
+        role: role || 'not provided'
       });
 
       // Call the Django backend with the Google ID token (with fallback to mock)
+      // Role is optional - backend will use existing user's role or default to 'guest' for new users
       const authResponse = await apiGoogleLogin(response.credential, role);
 
       console.log('Google auth success:', {

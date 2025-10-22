@@ -490,7 +490,8 @@ export default function SignIn() {
                   onSuccess={async (user) => {
                     // Login with Google through Django backend
                     try {
-                      const response = await djangoAuth.googleLogin(user.id, user.role);
+                      // Don't pass role - let backend use existing user's role or assign default for new users
+                      const response = await djangoAuth.googleLogin(user.id);
                       
                       const backendUser = response.user;
                       const userName = backendUser.first_name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
