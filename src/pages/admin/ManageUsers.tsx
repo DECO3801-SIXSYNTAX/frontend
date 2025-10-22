@@ -8,9 +8,46 @@ import EditUserModal from "../../features/users/EditUserModal";
 import type { UserItem, UserRole } from "../../types";
 import { api } from "../../lib/api";
 
+// Simple dropdown menu component
+function DropdownMenu({ children, trigger }: { children: React.ReactNode; trigger: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  
+  return (
+    <div className="relative">
+      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg z-20">
+            <div className="py-1" onClick={() => setOpen(false)}>
+              {children}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DropdownItem({ onClick, children, variant = "default" }: { onClick: () => void; children: React.ReactNode; variant?: "default" | "danger" }) {
+  const classes = variant === "danger"
+    ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700";
+  
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left px-4 py-2 text-sm ${classes} transition-colors`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function ManageUsers() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [roleFilter, setRoleFilter] = useState<"All" | UserRole>("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Suspended">("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserItem | null>(null);
@@ -30,6 +67,12 @@ export default function ManageUsers() {
 
   const filtered = useMemo(() => {
     let result = roleFilter === "All" ? users : users.filter(u => u.role === roleFilter);
+    
+    // Filter by status
+    if (statusFilter !== "All") {
+      result = result.filter(u => u.status === statusFilter);
+    }
+    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(u => 
@@ -38,12 +81,129 @@ export default function ManageUsers() {
       );
     }
     return result;
-  }, [users, roleFilter, searchQuery]);
+  }, [users, roleFilter, statusFilter, searchQuery]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = users.length;
+    const active = users.filter(u => u.status === "Active").length;
+    const suspended = users.filter(u => u.status === "Suspended").length;
+    const byRole = {
+      Admin: users.filter(u => u.role === "Admin").length,
+      Planner: users.filter(u => u.role === "Planner").length,
+      Vendor: users.filter(u => u.role === "Vendor").length,
+      Guest: users.filter(u => u.role === "Guest").length,
+    };
+    return { total, active, suspended, byRole };
+  }, [users]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelectedIds(next);
+  };
+
+  const handleBulkSuspend = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Suspend ${selectedIds.size} user(s)?`)) return;
+    
+    try {
+      setLoading(true);
+      await Promise.all(Array.from(selectedIds).map(id => api.suspendUser(id)));
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        selectedIds.has(u.id) ? { ...u, status: "Suspended" } : u
+      ));
+      setSelectedIds(new Set());
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Activate ${selectedIds.size} user(s)?`)) return;
+    
+    try {
+      setLoading(true);
+      await Promise.all(Array.from(selectedIds).map(id => api.activateUser(id)));
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        selectedIds.has(u.id) ? { ...u, status: "Active" } : u
+      ));
+      setSelectedIds(new Set());
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: UserItem) => {
+    if (!confirm(`Delete user "${user.name}"? This action cannot be undone.`)) return;
+    
+    try {
+      setLoading(true);
+      await api.deleteUser(user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (user: UserItem) => {
+    try {
+      setLoading(true);
+      if (user.status === "Active") {
+        await api.suspendUser(user.id);
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: "Suspended" } : u));
+      } else {
+        await api.activateUser(user.id);
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: "Active" } : u));
+      }
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    // Create CSV content from filtered users
+    const headers = ["Name", "Email", "Role", "Status", "Last Active"];
+    const rows = filtered.map(u => [
+      u.name,
+      u.email,
+      u.role,
+      u.status,
+      u.lastActive || "Never"
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `users_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -52,6 +212,68 @@ export default function ManageUsers() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Manage Users</h1>
           <p className="text-slate-600 dark:text-slate-400 mt-1">Invite, edit, and manage user permissions</p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Total Users</p>
+              <p className="text-3xl font-bold mt-1">{stats.total}</p>
+            </div>
+            <div className="bg-white/20 p-3 rounded-lg">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">Active Users</p>
+              <p className="text-3xl font-bold mt-1">{stats.active}</p>
+            </div>
+            <div className="bg-white/20 p-3 rounded-lg">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-sm font-medium">Suspended</p>
+              <p className="text-3xl font-bold mt-1">{stats.suspended}</p>
+            </div>
+            <div className="bg-white/20 p-3 rounded-lg">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm font-medium">By Role</p>
+              <div className="mt-1 space-y-1">
+                <p className="text-sm">Admin: {stats.byRole.Admin} | Planner: {stats.byRole.Planner}</p>
+                <p className="text-sm">Vendor: {stats.byRole.Vendor} | Guest: {stats.byRole.Guest}</p>
+              </div>
+            </div>
+            <div className="bg-white/20 p-3 rounded-lg">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -79,16 +301,37 @@ export default function ManageUsers() {
               <option key={r}>{r}</option>
             ))}
           </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as ("All" | "Active" | "Suspended"))}
+            className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+          >
+            <option value="All">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Suspended">Suspended</option>
+          </select>
         </div>
-        <Button 
-          onClick={() => setInviteOpen(true)} 
-          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm whitespace-nowrap"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Invite User
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={handleExportCSV}
+            variant="secondary"
+            className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </Button>
+          <Button 
+            onClick={() => setInviteOpen(true)} 
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm whitespace-nowrap"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Invite User
+          </Button>
+        </div>
       </div>
 
       {/* User Count */}
@@ -184,12 +427,25 @@ export default function ManageUsers() {
                   <Td><Badge>{u.status === "Active" ? "Active" : "Suspended"}</Badge></Td>
                   <Td className="text-slate-600 dark:text-slate-400">{u.lastActive || 'Never'}</Td>
                   <Td>
-                    <button 
-                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline font-medium transition-colors" 
-                      onClick={() => setEditUser(u)}
+                    <DropdownMenu
+                      trigger={
+                        <button className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                          </svg>
+                        </button>
+                      }
                     >
-                      Edit
-                    </button>
+                      <DropdownItem onClick={() => setEditUser(u)}>
+                        ✏️ Edit User
+                      </DropdownItem>
+                      <DropdownItem onClick={() => handleToggleStatus(u)}>
+                        {u.status === "Active" ? "🚫 Suspend" : "✅ Activate"}
+                      </DropdownItem>
+                      <DropdownItem onClick={() => handleDeleteUser(u)} variant="danger">
+                        🗑️ Delete User
+                      </DropdownItem>
+                    </DropdownMenu>
                   </Td>
                 </tr>
               ))}
@@ -208,12 +464,16 @@ export default function ManageUsers() {
             <Button 
               variant="secondary" 
               className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" 
-              onClick={() => {
-                alert(`Disable ${selectedIds.size} user(s)`);
-                setSelectedIds(new Set());
-              }}
+              onClick={handleBulkSuspend}
             >
-              Disable
+              Suspend
+            </Button>
+            <Button 
+              variant="secondary" 
+              className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" 
+              onClick={handleBulkActivate}
+            >
+              Activate
             </Button>
             <Button 
               variant="secondary" 

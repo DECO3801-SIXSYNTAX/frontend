@@ -47,6 +47,10 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
       script.async = true;
       script.defer = true;
       script.onload = initializeGoogleSignIn;
+      script.onerror = () => {
+        console.error('Failed to load Google Identity Services');
+        setShowFallback(true);
+      };
       document.head.appendChild(script);
     };
 
@@ -62,29 +66,57 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
       }
 
       console.log('Initializing Google Sign-In with client ID:', clientId.substring(0, 10) + '...');
+      console.log('Current origin:', window.location.origin);
 
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-        auto_select: false,
-        cancel_on_tap_outside: true
-      });
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
 
-      // Render the Google Sign-In button
-      window.google.accounts.id.renderButton(
-        googleButtonRef.current,
-        {
-          theme: "outline",
-          size: "large",
-          width: 320, // Fixed width in pixels instead of percentage
-          text: "continue_with",
-          shape: "rectangular",
-          logo_alignment: "left"
-        }
-      );
+        // Render the Google Sign-In button
+        window.google.accounts.id.renderButton(
+          googleButtonRef.current,
+          {
+            theme: "outline",
+            size: "large",
+            width: 320, // Fixed width in pixels instead of percentage
+            text: "continue_with",
+            shape: "rectangular",
+            logo_alignment: "left"
+          }
+        );
+      } catch (error) {
+        console.error('Error initializing Google Sign-In:', error);
+        console.error('⚠️  This error usually means the origin is not authorized.');
+        console.error('📝 Add', window.location.origin, 'to Google Cloud Console authorized origins');
+        console.error('🔗 Visit: https://console.cloud.google.com/apis/credentials');
+        setShowFallback(true);
+      }
     };
 
     loadGoogleScript();
+
+    // Listen for Google Sign-In errors
+    const handleGoogleError = (event: ErrorEvent) => {
+      if (event.message?.includes('Not a valid origin') || 
+          event.message?.includes('origin is not allowed') ||
+          event.message?.includes('403')) {
+        console.error('❌ Google Sign-In Error: Origin not authorized');
+        console.error('📝 Current origin:', window.location.origin);
+        console.error('💡 Fix: Add this origin to Google Cloud Console:');
+        console.error('   1. Go to https://console.cloud.google.com/apis/credentials');
+        console.error('   2. Select your OAuth 2.0 Client ID');
+        console.error('   3. Add', window.location.origin, 'to "Authorized JavaScript origins"');
+        console.error('   4. Save and wait 5-10 minutes for changes to propagate');
+        onError?.('Google Sign-In configuration error. Please check console for details.');
+        setShowFallback(true);
+      }
+    };
+
+    window.addEventListener('error', handleGoogleError);
 
     // Set timeout to show fallback if Google services fail to load
     const timeout = setTimeout(() => {
@@ -94,8 +126,11 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
       }
     }, 5000);
 
-    return () => clearTimeout(timeout);
-  }, []);
+    return () => {
+      window.removeEventListener('error', handleGoogleError);
+      clearTimeout(timeout);
+    };
+  }, [onError]);
 
   const handleFallbackLogin = async () => {
     if (isLoading) return;

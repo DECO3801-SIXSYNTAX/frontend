@@ -204,4 +204,19 @@ export const api = {
     });
     return api._normalizeUser(raw);
   },
+  suspendUser: async (id: string): Promise<void> => {
+    await fetchJson(`${API_BASE}/users/${id}/suspend/`, {
+      method: 'POST',
+    });
+  },
+  activateUser: async (id: string): Promise<void> => {
+    await fetchJson(`${API_BASE}/users/${id}/activate/`, {
+      method: 'POST',
+    });
+  },
+  deleteUser: async (id: string): Promise<void> => {
+    await fetchJson(`${API_BASE}/admin/users/${id}/`, {
+      method: 'DELETE',
+    });
+  },
 };

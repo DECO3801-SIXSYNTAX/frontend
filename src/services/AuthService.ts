@@ -163,6 +163,52 @@ export class AuthService {
 
       await setDoc(doc(db, 'users', firebaseUser.uid), userProfile);
 
+      // Also create user in Django backend for authentication
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
+        const nameParts = data.name.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const djangoPayload = {
+          username: data.email, // Use email as username
+          email: data.email,
+          password: data.password,
+          first_name: firstName,
+          last_name: lastName,
+          role: data.role.toLowerCase(),
+          ...(data.role === 'planner' && {
+            company: data.company,
+            phone: data.phone,
+            experience: data.experience,
+            specialty: data.specialty,
+          }),
+        };
+
+        const response = await fetch(`${API_BASE}/auth/register/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...djangoPayload,
+            password2: data.password, // Django requires password confirmation
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          Logger.warn('Django registration failed (non-critical)', { error: errorText });
+          // Don't throw error - Firebase user is already created
+          // They can still use Firebase/Google login
+        } else {
+          Logger.info('User also registered in Django backend');
+        }
+      } catch (djangoError: any) {
+        Logger.warn('Django registration failed (non-critical)', djangoError);
+        // Continue - Firebase user is created, Django registration is optional
+      }
+
       const user: User = {
         id: firebaseUser.uid,
         email: data.email,
