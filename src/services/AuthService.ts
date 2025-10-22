@@ -36,7 +36,7 @@ export interface User {
   email: string;
   password: string; // Not used in Firebase (kept for interface compatibility)
   name: string;
-  role: 'planner' | 'vendor';
+  role: 'admin' | 'planner' | 'vendor' | 'guest';
   // Planner-specific fields (optional for vendors)
   company?: string;
   phone?: string;

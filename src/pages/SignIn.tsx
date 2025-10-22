@@ -488,24 +488,19 @@ export default function SignIn() {
 
                 <GoogleButton
                   onSuccess={async (user) => {
-                    // Login with Google through Django backend
+                    // GoogleButton already handles authentication with Django backend
+                    // The 'user' parameter is already the authenticated user from backend
                     try {
-                      // Don't pass role - let backend use existing user's role or assign default for new users
-                      const response = await djangoAuth.googleLogin(user.id);
-                      
-                      const backendUser = response.user;
-                      const userName = backendUser.first_name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+                      const userName = user.name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
                       showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
                       // Set user data from backend
                       setCurrentUser({
-                        id: backendUser.id,
-                        email: backendUser.email,
-                        name: backendUser.first_name && backendUser.last_name 
-                          ? `${backendUser.first_name} ${backendUser.last_name}`.trim()
-                          : backendUser.first_name || backendUser.username || userName,
-                        role: backendUser.role,
+                        id: user.id,
+                        email: user.email,
+                        name: user.name || userName,
+                        role: user.role,
                         password: '' // No password for Google sign-in
                       });
 
@@ -513,9 +508,9 @@ export default function SignIn() {
                       setTimeout(() => setExiting(true), 350);
                       setTimeout(() => {
                         setCurrentPage('dashboard');
-                        if (backendUser.role === 'admin') {
+                        if (user.role === 'admin') {
                           navigate('/admin');
-                        } else if (backendUser.role === 'vendor') {
+                        } else if (user.role === 'vendor') {
                           navigate('/vendor');
                         } else {
                           navigate('/planner/dashboard');
