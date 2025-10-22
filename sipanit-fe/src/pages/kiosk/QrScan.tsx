@@ -122,45 +122,51 @@ export function QrScan() {
       setIsStartingCamera(true)
       setCameraError(null)
     
-      console.log("Starting camera...")
+    console.log("Starting camera...")
     
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Camera not supported on this device")
       }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+      try {
+        // Simple, reliable camera settings
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        })
+        
+        console.log("Camera stream obtained:", mediaStream)
+        setStream(mediaStream)
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream
+          videoRef.current.onloadedmetadata = () => {
+            console.log("Video metadata loaded")
+            console.log("Attempting to play video...")
+            videoRef.current?.play().then(() => {
+              console.log("Video play() resolved successfully")
+            }).catch((error) => {
+              console.error("Video play() failed:", error)
+            })
+          }
+          videoRef.current.onplaying = () => {
+            console.log("=== Video is playing ===")
+            console.log("isManualScanning:", isManualScanning)
+            console.log("Auto-starting QR scanning")
+            setIsScanning(true)
+            setTimeout(() => startQRScanning(), 100) // Small delay to ensure video is ready
+          }
+          videoRef.current.onerror = (e) => {
+            console.error("Video error:", e)
+            setCameraError("Failed to start video stream")
+          }
         }
-      })
-      
-      console.log("Camera stream obtained:", mediaStream)
-      setStream(mediaStream)
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-        videoRef.current.onloadedmetadata = () => {
-          console.log("Video metadata loaded")
-          console.log("Attempting to play video...")
-          videoRef.current?.play().then(() => {
-            console.log("Video play() resolved successfully")
-          }).catch((error) => {
-            console.error("Video play() failed:", error)
-          })
-        }
-        videoRef.current.onplaying = () => {
-          console.log("=== Video is playing ===")
-          console.log("isManualScanning:", isManualScanning)
-          console.log("Auto-starting QR scanning")
-          setIsScanning(true)
-          setTimeout(() => startQRScanning(), 100) // Small delay to ensure video is ready
-        }
-        videoRef.current.onerror = (e) => {
-          console.error("Video error:", e)
-          setCameraError("Failed to start video stream")
-        }
+      } catch (error) {
+        console.log("Camera access failed:", error)
+        throw error
       }
     } catch (error: any) {
       console.error("Camera error:", error)
@@ -218,16 +224,18 @@ export function QrScan() {
         return
       }
 
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
+      // Optimize canvas size for better QR detection
+      const scale = 0.8 // Better balance between performance and detection
+      canvas.width = video.videoWidth * scale
+      canvas.height = video.videoHeight * scale
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
       const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-      console.log("Canvas dimensions:", canvas.width, "x", canvas.height)
-      console.log("ImageData length:", imageData.data.length)
       
       try {
+        // Simple, fast QR detection
         const code = jsQR(imageData.data, imageData.width, imageData.height)
+        
         if (code) {
           console.log("QR Code detected:", code.data)
           
@@ -242,12 +250,12 @@ export function QrScan() {
             })
             setInvalidQR(null) // Clear invalid QR
             
-            // Auto-process after a short delay to show tracking
+            // Auto-process immediately for maximum responsiveness
             setTimeout(() => {
               setIsScanning(false)
               setIsManualScanning(false)
               handleQRDetected(code.data)
-            }, 1000)
+            }, 200) // Very short delay just to show tracking
             return
           } else {
             // Store invalid QR for visual feedback
@@ -257,10 +265,10 @@ export function QrScan() {
             })
             setDetectedQR(null) // Clear valid QR
             
-            // Clear invalid QR after 2 seconds
+            // Clear invalid QR quickly
             setTimeout(() => {
               setInvalidQR(null)
-            }, 2000)
+            }, 1000)
           }
         } else {
           // Clear both detected and invalid QR if no code found
@@ -273,6 +281,7 @@ export function QrScan() {
       }
 
       if (isScanning) {
+        // Use requestAnimationFrame for smooth, efficient scanning
         requestAnimationFrame(scan)
       }
     }

@@ -46,6 +46,11 @@ export function Verify() {
       setIsLoading(true)
       
       try {
+        console.log("=== API Call Debug ===")
+        console.log("Token:", token)
+        console.log("EventId:", eventId)
+        console.log("API URL:", 'http://127.0.0.1:8000/api/guest/debug-decode-guest/')
+        
         const response = await fetch('http://127.0.0.1:8000/api/guest/debug-decode-guest/', {
           method: 'POST',
           headers: {
@@ -54,8 +59,12 @@ export function Verify() {
           body: JSON.stringify({ token })
         })
 
+        console.log("Response status:", response.status)
+        console.log("Response headers:", response.headers)
+        
         if (response.ok) {
           const data: VerifyResponse = await response.json()
+          console.log("Response data:", data)
           setGuestInfo(data.guest)
           setError(null)
           
@@ -65,10 +74,11 @@ export function Verify() {
           }, 1000)
         } else {
           const errorData = await response.json()
+          console.error("API Error:", response.status, errorData)
           setError(errorData.detail || "Invalid QR code. Please contact event staff.")
         }
       } catch (error) {
-        console.error("Verification error:", error)
+        console.error("Network error:", error)
         setError("Network error. Please try again.")
       } finally {
         setIsLoading(false)
