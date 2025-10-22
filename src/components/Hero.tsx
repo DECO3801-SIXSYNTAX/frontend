@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import Button from "@/components/ui/Button"
+import { InteractiveSeatingDemo } from "@/components/demo/InteractiveSeatingDemo"
 
 export function Hero() {
   return (
@@ -36,30 +37,9 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Right Illustration */}
+          {/* Right Interactive Demo */}
           <div className="flex justify-center lg:justify-end">
-            <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-500 rounded-2xl shadow-2xl p-8 max-w-md w-full">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-white">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center space-x-2 mb-6">
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-semibold text-center">Interactive Floor Plans</h3>
-                  <p className="text-white/80 text-center text-sm">Drag & drop seating arrangements with real-time collaboration</p>
-                  <div className="grid grid-cols-3 gap-2 mt-6">
-                    {[1,2,3,4,5,6].map(i => (
-                      <div key={i} className="bg-white/20 rounded-lg h-16 flex items-center justify-center">
-                        <div className="w-8 h-8 bg-white/30 rounded-full"></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <InteractiveSeatingDemo />
           </div>
         </div>
       </div>

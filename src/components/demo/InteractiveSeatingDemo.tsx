@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useCallback, useMemo } from "react"
 import { Stage, Layer, Rect, Circle, Text, Group } from "react-konva"
 import type Konva from "konva"
 
@@ -11,8 +11,105 @@ interface TableItem {
   type: "round" | "rectangle"
   seats: number
   color: string
-  isDragging: boolean
 }
+
+// Memoized table component for better performance
+const TableComponent = React.memo(({ table, onDragEnd }: { 
+  table: TableItem
+  onDragEnd: (id: string, e: Konva.KonvaEventObject<DragEvent>) => void
+}) => {
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleDragStart = useCallback(() => {
+    setIsDragging(true)
+  }, [])
+
+  const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    setIsDragging(false)
+    onDragEnd(table.id, e)
+  }, [table.id, onDragEnd])
+
+  const opacity = isDragging ? 0.8 : 1
+  const scale = isDragging ? 1.05 : 1
+
+  if (table.type === "round") {
+    return (
+      <Group
+        x={table.x}
+        y={table.y}
+        draggable
+        opacity={opacity}
+        scaleX={scale}
+        scaleY={scale}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <Circle
+          radius={table.width / 2}
+          fill={table.color}
+          stroke="#ffffff"
+          strokeWidth={2}
+          shadowColor="rgba(0,0,0,0.2)"
+          shadowBlur={3}
+          shadowOffsetX={1}
+          shadowOffsetY={1}
+          shadowEnabled={!isDragging}
+        />
+        <Text
+          text={table.seats.toString()}
+          fontSize={16}
+          fontFamily="Arial"
+          fill="white"
+          fontStyle="bold"
+          x={-8}
+          y={-8}
+          align="center"
+          listening={false}
+        />
+      </Group>
+    )
+  }
+
+  return (
+    <Group
+      x={table.x}
+      y={table.y}
+      draggable
+      opacity={opacity}
+      scaleX={scale}
+      scaleY={scale}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <Rect
+        width={table.width}
+        height={table.height}
+        fill={table.color}
+        stroke="#ffffff"
+        strokeWidth={2}
+        cornerRadius={8}
+        shadowColor="rgba(0,0,0,0.2)"
+        shadowBlur={3}
+        shadowOffsetX={1}
+        shadowOffsetY={1}
+        shadowEnabled={!isDragging}
+      />
+      <Text
+        text={table.seats.toString()}
+        fontSize={16}
+        fontFamily="Arial"
+        fill="white"
+        fontStyle="bold"
+        x={table.width / 2 - 8}
+        y={table.height / 2 - 8}
+        align="center"
+        listening={false}
+      />
+    </Group>
+  )
+})
+
+TableComponent.displayName = "TableComponent"
 
 export function InteractiveSeatingDemo() {
   const [tables, setTables] = useState<TableItem[]>([
@@ -25,7 +122,6 @@ export function InteractiveSeatingDemo() {
       type: "round",
       seats: 6,
       color: "#3B82F6",
-      isDragging: false,
     },
     {
       id: "table2",
@@ -36,7 +132,6 @@ export function InteractiveSeatingDemo() {
       type: "rectangle",
       seats: 8,
       color: "#10B981",
-      isDragging: false,
     },
     {
       id: "table3",
@@ -47,7 +142,6 @@ export function InteractiveSeatingDemo() {
       type: "round",
       seats: 4,
       color: "#F59E0B",
-      isDragging: false,
     },
   ])
 
@@ -64,98 +158,50 @@ export function InteractiveSeatingDemo() {
     }
 
     updateSize()
+    const timeoutId = setTimeout(updateSize, 100)
     window.addEventListener("resize", updateSize)
-    return () => window.removeEventListener("resize", updateSize)
+    return () => {
+      window.removeEventListener("resize", updateSize)
+      clearTimeout(timeoutId)
+    }
   }, [])
 
-  const handleDragStart = (id: string) => {
-    setTables(tables.map((table) => (table.id === id ? { ...table, isDragging: true } : table)))
-  }
-
-  const handleDragEnd = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    setTables(
-      tables.map((table) =>
+  const handleDragEnd = useCallback((id: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    setTables((prevTables) =>
+      prevTables.map((table) =>
         table.id === id
           ? {
               ...table,
-              isDragging: false,
               x: e.target.x(),
               y: e.target.y(),
             }
           : table,
       ),
     )
-  }
+  }, [])
 
-  const TableComponent = ({ table }: { table: TableItem }) => {
-    const opacity = table.isDragging ? 0.7 : 1
-
-    if (table.type === "round") {
-      return (
-        <Group
-          x={table.x}
-          y={table.y}
-          draggable
-          opacity={opacity}
-          onDragStart={() => handleDragStart(table.id)}
-          onDragEnd={(e) => handleDragEnd(table.id, e)}
-        >
-          <Circle
-            radius={table.width / 2}
-            fill={table.color}
-            stroke="#ffffff"
-            strokeWidth={2}
-            shadowColor="rgba(0,0,0,0.3)"
-            shadowBlur={5}
-            shadowOffset={{ x: 2, y: 2 }}
+  // Memoize background grid to prevent recreation
+  const backgroundGrid = useMemo(() => {
+    const dots = []
+    const rows = Math.ceil(stageSize.height / 25)
+    const cols = Math.ceil(stageSize.width / 25)
+    
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        dots.push(
+          <Circle 
+            key={`${i}-${j}`} 
+            x={i * 25 + 12} 
+            y={j * 25 + 12} 
+            radius={1.5} 
+            fill="#D1D5DB"
+            listening={false}
           />
-          <Text
-            text={table.seats.toString()}
-            fontSize={16}
-            fontFamily="Arial"
-            fill="white"
-            fontStyle="bold"
-            x={-8}
-            y={-8}
-            align="center"
-          />
-        </Group>
-      )
+        )
+      }
     }
-
-    return (
-      <Group
-        x={table.x}
-        y={table.y}
-        draggable
-        opacity={opacity}
-        onDragStart={() => handleDragStart(table.id)}
-        onDragEnd={(e) => handleDragEnd(table.id, e)}
-      >
-        <Rect
-          width={table.width}
-          height={table.height}
-          fill={table.color}
-          stroke="#ffffff"
-          strokeWidth={2}
-          cornerRadius={8}
-          shadowColor="rgba(0,0,0,0.3)"
-          shadowBlur={5}
-          shadowOffset={{ x: 2, y: 2 }}
-        />
-        <Text
-          text={table.seats.toString()}
-          fontSize={16}
-          fontFamily="Arial"
-          fill="white"
-          fontStyle="bold"
-          x={table.width / 2 - 8}
-          y={table.height / 2 - 8}
-          align="center"
-        />
-      </Group>
-    )
-  }
+    return dots
+  }, [stageSize.width, stageSize.height])
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
@@ -166,20 +212,14 @@ export function InteractiveSeatingDemo() {
 
       <div
         ref={containerRef}
-        className="border-2 border-gray-200 rounded-lg bg-gray-50 overflow-hidden"
+        className="border-2 border-gray-200 rounded-lg bg-gray-50 overflow-hidden cursor-move"
         style={{ height: stageSize.height }}
       >
         <Stage width={stageSize.width} height={stageSize.height}>
           <Layer>
-            {/* Background grid */}
-            {Array.from({ length: Math.ceil(stageSize.width / 20) }).map((_, i) =>
-              Array.from({ length: Math.ceil(stageSize.height / 20) }).map((_, j) => (
-                <Circle key={`${i}-${j}`} x={i * 20 + 10} y={j * 20 + 10} radius={1} fill="#E5E7EB" />
-              )),
-            )}
-
+            {backgroundGrid}
             {tables.map((table) => (
-              <TableComponent key={table.id} table={table} />
+              <TableComponent key={table.id} table={table} onDragEnd={handleDragEnd} />
             ))}
           </Layer>
         </Stage>
