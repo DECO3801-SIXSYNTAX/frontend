@@ -488,13 +488,14 @@ const GuestManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {guest.dietaryNeeds && (
+                        {guest.dietaryNeeds && guest.dietaryNeeds.toLowerCase() !== 'none' && (
                           <div className="mb-1">🍽️ {guest.dietaryNeeds}</div>
                         )}
-                        {guest.accessibility && (
+                        {guest.accessibility && guest.accessibility.toLowerCase() !== 'none' && (
                           <div>♿ {guest.accessibility}</div>
                         )}
-                        {!guest.dietaryNeeds && !guest.accessibility && (
+                        {(!guest.dietaryNeeds || guest.dietaryNeeds.toLowerCase() === 'none') && 
+                         (!guest.accessibility || guest.accessibility.toLowerCase() === 'none') && (
                           <span className="text-gray-400">None</span>
                         )}
                       </div>
