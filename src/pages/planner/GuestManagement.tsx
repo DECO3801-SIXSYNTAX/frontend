@@ -47,12 +47,15 @@ const GuestManagement: React.FC = () => {
 
   const guestService = new GuestService();
 
-  // Use first event or selected event
+  // Restore selected event from localStorage or use first event
   useEffect(() => {
     console.log('Events:', events);
-    if (events && events.length > 0 && !selectedEventId) {
-      console.log('Setting first event:', events[0].id);
+    const storedEventId = localStorage.getItem('selectedEventId');
+    if (storedEventId && events.some(e => e.id === storedEventId)) {
+      setSelectedEventId(storedEventId);
+    } else if (events && events.length > 0 && !selectedEventId) {
       setSelectedEventId(events[0].id);
+      localStorage.setItem('selectedEventId', events[0].id);
     }
   }, [events, selectedEventId]);
 
@@ -60,6 +63,7 @@ const GuestManagement: React.FC = () => {
   useEffect(() => {
     console.log('Selected Event ID:', selectedEventId);
     if (selectedEventId) {
+      localStorage.setItem('selectedEventId', selectedEventId);
       loadGuests();
     }
   }, [selectedEventId]);
@@ -252,6 +256,15 @@ const GuestManagement: React.FC = () => {
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Guest
+              </button>
+              <button
+                onClick={loadGuests}
+                disabled={!selectedEventId}
+                className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ marginLeft: '8px' }}
+              >
+                <span className="mr-2">🔄</span>
+                Refresh
               </button>
             </div>
           </div>
@@ -683,18 +696,7 @@ const GuestManagement: React.FC = () => {
                     )}
 
                     {/* Table Assignment */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Table Assignment
-                      </label>
-                      <input
-                        type="text"
-                        value={newGuest.table}
-                        onChange={(e) => setNewGuest({ ...newGuest, table: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        placeholder="A1, B2, etc."
-                      />
-                    </div>
+                    {/* Table Assignment input removed as requested */}
                   </div>
 
                   {/* Actions */}

@@ -29,43 +29,16 @@ export async function apiUpdateUser(userId: string, userData: Partial<User>): Pr
 }
 
 export async function apiCreateUser(userData: SignUpPayload): Promise<User> {
-  // Map frontend SignUpPayload to Django RegisterSerializer format
-  const djangoPayload = {
-    username: userData.email,  // Use email as username
-    email: userData.email,
-    password: userData.password,
-    password2: userData.password,  // Django expects password confirmation
-    first_name: userData.name,
-    last_name: '',  // Optional, can be empty
-    role: userData.role,
-    company: userData.company || '',
-    // Note: phone, experience, specialty are stored in User model but not required by RegisterSerializer
+  // Generate UUID for new user
+  const newUserData: User = {
+    ...userData,
+    id: generateUUID()
   };
   
-  console.log('Creating Django user with data:', {
-    username: djangoPayload.username,
-    email: djangoPayload.email,
-    role: djangoPayload.role,
-    company: djangoPayload.company
-  });
+  console.log('Creating user with data:', newUserData);
   
-  const res = await axios.post<any>(`${API_URL}/api/auth/register/`, djangoPayload);
-  
-  // Map Django response back to frontend User format
-  const djangoUser = res.data;
-  const user: User = {
-    id: djangoUser.id,
-    email: djangoUser.email,
-    password: '',  // Never expose password
-    name: djangoUser.name || djangoUser.first_name || '',
-    role: djangoUser.role,
-    company: djangoUser.company,
-    phone: userData.phone,
-    experience: userData.experience,
-    specialty: userData.specialty,
-  };
-  
-  return user;
+  const res = await axios.post<User>(`${API_URL}/api/auth/register`, newUserData);
+  return res.data;
 }
 
 export async function apiGetUser(userId: string): Promise<User> {
@@ -194,53 +167,6 @@ export async function apiGoogleLogin(idToken: string, role?: string): Promise<Go
     }
 
     // For 400 errors, the issue is with the token/request - don't fall back, throw the error
-    throw error;
-  }
-}
-
-// Email/Password Authentication API
-export interface DjangoLoginResponse {
-  refresh: string;
-  access: string;
-  user: User;
-}
-
-export async function apiDjangoLogin(email: string, password: string): Promise<DjangoLoginResponse> {
-  const payload = {
-    username: email,  // Django expects 'username' field
-    password: password
-  };
-
-  console.log('Sending email/password login request to Django backend:', {
-    url: `${API_URL}/api/auth/login/`,
-    email: email
-  });
-
-  try {
-    const res = await axios.post<DjangoLoginResponse>(`${API_URL}/api/auth/login/`, payload, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      timeout: 10000 // 10 second timeout
-    });
-
-    console.log('✓ Django backend login successful:', {
-      status: res.status,
-      hasData: !!res.data,
-      dataKeys: res.data ? Object.keys(res.data) : []
-    });
-
-    return res.data;
-  } catch (error: any) {
-    console.error('✗ Django backend login error:', {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      responseData: error.response?.data,
-      url: error.config?.url
-    });
-
     throw error;
   }
 }

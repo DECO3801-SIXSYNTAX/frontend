@@ -1,5 +1,7 @@
+
 import { PropsWithChildren } from "react";
 
+// --- Original Badge (default export, unchanged) ---
 const colors: Record<string, string> = {
   Active: "bg-green-50 text-green-700 ring-green-600/20",
   Planning: "bg-yellow-50 text-yellow-800 ring-yellow-600/20",

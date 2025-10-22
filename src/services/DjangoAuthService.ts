@@ -138,12 +138,19 @@ export class DjangoAuthService {
       payload.username = payload.email;
     }
 
+    // Backend requires password2 for confirmation
+    const registerData = {
+      ...payload,
+      password2: payload.password,  // Add password confirmation
+      role: payload.role?.toLowerCase() || 'guest'  // Ensure lowercase role
+    };
+
     const response = await fetch(`${API_BASE}/auth/register/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(registerData),
     });
 
     if (!response.ok) {
