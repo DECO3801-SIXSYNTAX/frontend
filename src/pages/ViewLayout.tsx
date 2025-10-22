@@ -91,7 +91,8 @@ const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
 
   const loadFloorPlan = async () => {
     try {
-      const eventPlan = await floorPlanService.getFloorPlanByEventId(eventId);
+      // Load from Django backend
+      const eventPlan = await floorPlanService.getFloorPlanFromDjango(eventId);
       if (eventPlan) {
         setFloorPlan(eventPlan);
       }
@@ -187,21 +188,25 @@ const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
 
         const newGuest = await dashboardService.addGuest(eventId, newGuestData);
 
-        // Assign to selected element
-        if (selectedElement && floorPlan && newGuest) {
-          const updatedElements = floorPlan.elements.map(el =>
-            el.id === selectedElement.id
-              ? { ...el, assignedGuests: [...(el.assignedGuests || []), newGuest.id] }
-              : el
-          );
+        // Assign to selected element via Django backend API
+        if (selectedElement && newGuest) {
+          try {
+            const result = await floorPlanService.assignGuestToSeat(eventId, newGuest.id, selectedElement.id);
+            console.log(`✓ Assigned new guest to ${result.element.element_name}`);
 
-          // Save updated floor plan with new guest assignment
-          await floorPlanService.saveFloorPlan({
-            ...floorPlan,
-            eventId, // Use eventId from props to ensure it's defined
-            elements: updatedElements
-          });
-          setFloorPlan({ ...floorPlan, elements: updatedElements });
+            // Update local state
+            if (floorPlan) {
+              const updatedElements = floorPlan.elements.map(el =>
+                el.id === selectedElement.id
+                  ? { ...el, assignedGuests: [...(el.assignedGuests || []), newGuest.id] }
+                  : el
+              );
+              setFloorPlan({ ...floorPlan, elements: updatedElements });
+            }
+          } catch (assignError) {
+            console.error('Error assigning guest to seat:', assignError);
+            alert('Guest created but failed to assign to seat. Please try assigning manually.');
+          }
         }
       }
 
@@ -214,30 +219,27 @@ const ViewLayout: React.FC<ViewLayoutProps> = ({ eventId }) => {
   };
 
   const handleDeleteGuest = async (guestId: string) => {
-    if (!window.confirm('Are you sure you want to remove this guest?')) return;
+    if (!window.confirm('Are you sure you want to remove this guest from this seat?')) return;
 
     try {
-      // Remove from element assignment in floor plan
+      // Note: Django backend automatically removes guest from seat assignments
+      // when guest is deleted. We just need to update local state.
+
+      // Update local state to remove guest from element
       if (selectedElement && floorPlan) {
         const updatedElements = floorPlan.elements.map(el =>
           el.id === selectedElement.id
             ? { ...el, assignedGuests: el.assignedGuests.filter(id => id !== guestId) }
             : el
         );
-
-        // Save updated floor plan
-        await floorPlanService.saveFloorPlan({
-          ...floorPlan,
-          eventId, // Use eventId from props to ensure it's defined
-          elements: updatedElements
-        });
         setFloorPlan({ ...floorPlan, elements: updatedElements });
       }
 
+      // Reload guests to get updated state from backend
       await loadGuests();
     } catch (error) {
-      console.error('Error deleting guest:', error);
-      alert('Failed to delete guest');
+      console.error('Error removing guest:', error);
+      alert('Failed to remove guest');
     }
   };
 

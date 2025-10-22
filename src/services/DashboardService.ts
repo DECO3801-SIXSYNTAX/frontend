@@ -825,4 +825,112 @@ export class DashboardService {
       return [];
     }
   }
+
+  // QR Code and Email Invitation Methods
+
+  /**
+   * Download QR code for a specific guest
+   * @param eventId - The event ID
+   * @param guestId - The guest ID
+   * @param guestName - The guest name (for filename)
+   */
+  async downloadGuestQR(eventId: string, guestId: string, guestName: string): Promise<void> {
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+      const response = await fetch(`${API_URL}/api/guest/qr/${encodeURIComponent(eventId)}/${encodeURIComponent(guestId)}/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download QR code');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${guestName.replace(/\s+/g, '-')}-qr.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download guest QR code:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send invitation email with QR code to a single guest
+   * @param eventId - The event ID
+   * @param guestId - The guest ID
+   * @param baseUrl - The frontend base URL for check-in links
+   */
+  async sendGuestInvite(eventId: string, guestId: string, baseUrl: string): Promise<void> {
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+      const response = await axios.post(
+        `${API_URL}/api/guest/${encodeURIComponent(eventId)}/${encodeURIComponent(guestId)}/send-invite/`,
+        { baseUrl },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to send guest invite:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send invitation emails with QR codes to multiple guests
+   * @param eventId - The event ID
+   * @param baseUrl - The frontend base URL for check-in links
+   * @param guestIds - Optional array of guest IDs. If omitted, sends to all guests
+   * @returns Result object with sent and skipped counts
+   */
+  async sendBulkInvites(
+    eventId: string,
+    baseUrl: string,
+    guestIds?: string[]
+  ): Promise<{
+    ok: boolean;
+    eventId: string;
+    requested: number | string;
+    sent: string[];
+    skipped: Array<{ guestId: string; reason: string }>;
+    counts: { sent: number; skipped: number };
+  }> {
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+      const response = await axios.post(
+        `${API_URL}/api/guest/bulk-send-invites/${encodeURIComponent(eventId)}/`,
+        { baseUrl, guestIds },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to send bulk invites:', error);
+      throw error;
+    }
+  }
 }

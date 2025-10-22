@@ -29,6 +29,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import AddMemberModal from '../../components/modals/AddMemberModal';
 import AddVersionNoteModal from '../../components/modals/AddVersionNoteModal';
+import SelectGuestsModal from '../../components/modals/SelectGuestsModal';
 import { EventConfigService, EventConfig } from '../../services/EventConfigService';
 
 interface EventConfigurationProps {
@@ -47,6 +48,13 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
   const [qrGenerationSuccess, setQrGenerationSuccess] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [isSelectGuestsModalOpen, setIsSelectGuestsModalOpen] = useState(false);
+  const [isSendingInvites, setIsSendingInvites] = useState(false);
+  const [sendInviteResult, setSendInviteResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: { sent: number; skipped: number };
+  } | null>(null);
   const qrPreviewRef = useRef<HTMLDivElement>(null);
 
   // Initialize EventConfigService
@@ -303,6 +311,123 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
     });
 
     pdf.save(`${event.name.replace(/\s+/g, '-')}-all-qr-codes.pdf`);
+  };
+
+  const handleBulkSendInvites = async () => {
+    if (!event) return;
+
+    setIsSendingInvites(true);
+    setSendInviteResult(null);
+
+    try {
+      const baseUrl = window.location.origin;
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+      const response = await fetch(`${API_URL}/api/guest/bulk-send-invites/${encodeURIComponent(eventId)}/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ baseUrl })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send invites: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      console.log('Bulk send invite result:', result);
+
+      // Show detailed message if guests were skipped
+      let message = `Successfully sent ${result.counts.sent} invitation(s)`;
+      if (result.counts.skipped > 0 && result.skipped?.length > 0) {
+        const reasons = result.skipped.map((s: any) => s.reason).join(', ');
+        message += `. ${result.counts.skipped} skipped (${reasons})`;
+      }
+
+      setSendInviteResult({
+        success: result.counts.sent > 0 || result.counts.skipped === 0,
+        message,
+        details: {
+          sent: result.counts.sent,
+          skipped: result.counts.skipped
+        }
+      });
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSendInviteResult(null), 5000);
+
+    } catch (error: any) {
+      console.error('Failed to send bulk invites:', error);
+      setSendInviteResult({
+        success: false,
+        message: error.message || 'Failed to send invitations. Please try again.'
+      });
+    } finally {
+      setIsSendingInvites(false);
+    }
+  };
+
+  const handleSelectiveSendInvites = async (guestIds: string[]) => {
+    if (!event || guestIds.length === 0) return;
+
+    setIsSendingInvites(true);
+    setSendInviteResult(null);
+
+    try {
+      const baseUrl = window.location.origin;
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+      const response = await fetch(`${API_URL}/api/guest/bulk-send-invites/${encodeURIComponent(eventId)}/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ baseUrl, guestIds })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send invites: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      console.log('Bulk send invite result:', result);
+
+      // Show detailed message if guests were skipped
+      let message = `Successfully sent ${result.counts.sent} invitation(s) to selected guests`;
+      if (result.counts.skipped > 0 && result.skipped?.length > 0) {
+        const reasons = result.skipped.map((s: any) => s.reason).join(', ');
+        message += `. ${result.counts.skipped} skipped (${reasons})`;
+      }
+
+      setSendInviteResult({
+        success: result.counts.sent > 0 || result.counts.skipped === 0,
+        message,
+        details: {
+          sent: result.counts.sent,
+          skipped: result.counts.skipped
+        }
+      });
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSendInviteResult(null), 5000);
+
+    } catch (error: any) {
+      console.error('Failed to send selective invites:', error);
+      setSendInviteResult({
+        success: false,
+        message: error.message || 'Failed to send invitations. Please try again.'
+      });
+    } finally {
+      setIsSendingInvites(false);
+      setIsSelectGuestsModalOpen(false);
+    }
   };
 
   const handleAddMember = async (newMember: any) => {
@@ -771,17 +896,54 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
 
                 {/* Email to Guests Section */}
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">Email to Guests</h3>
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">Email Invitations with QR Codes</h3>
                   <p className="text-sm text-gray-500 mb-4">
-                    Email QR codes directly to event guests (Coming Soon)
+                    Send personalized invitation emails with unique QR codes to each guest
                   </p>
-                  <button
-                    disabled
-                    className="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-400 rounded-lg cursor-not-allowed"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Email QR Codes (Upcoming Feature)
-                  </button>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setIsSelectGuestsModalOpen(true)}
+                      className="w-full flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Send to Selected Guests
+                    </button>
+                    <button
+                      onClick={handleBulkSendInvites}
+                      disabled={isSendingInvites}
+                      className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isSendingInvites ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Sending Invites...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send to All Guests
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {sendInviteResult && (
+                    <div className={`mt-3 p-3 rounded-lg border ${
+                      sendInviteResult.success
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <p className={`text-sm ${
+                        sendInviteResult.success ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {sendInviteResult.message}
+                      </p>
+                      {sendInviteResult.details && (
+                        <p className="text-xs mt-1 text-gray-600">
+                          Sent: {sendInviteResult.details.sent} | Skipped: {sendInviteResult.details.skipped}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1080,6 +1242,13 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
           onClose={() => setIsAddNoteModalOpen(false)}
           onAddNote={handleAddVersionNote}
           currentVersion={getCurrentVersion()}
+        />
+
+        <SelectGuestsModal
+          isOpen={isSelectGuestsModalOpen}
+          onClose={() => setIsSelectGuestsModalOpen(false)}
+          onSendInvites={handleSelectiveSendInvites}
+          eventId={eventId}
         />
       </div>
     </div>

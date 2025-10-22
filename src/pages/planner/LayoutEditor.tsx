@@ -296,7 +296,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
     { id: 'user2', name: 'Bob Smith', avatar: '', color: '#10B981' }
   ]);
 
-  // Initialize FloorPlanService
+  // Initialize services
   const floorPlanService = new FloorPlanService();
   const guestService = new GuestService();
 
@@ -380,32 +380,37 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
     try {
       if (!eventId) return;
 
-      const eventPlan = await floorPlanService.getFloorPlanByEventId(eventId);
+      // Load from Django backend
+      const eventPlan = await floorPlanService.getFloorPlanFromDjango(eventId);
       if (eventPlan) {
-        setFloorPlanId(eventPlan.id || null);
+        setFloorPlanId(eventPlan.eventId);
         setCanvasSize(eventPlan.canvasSize);
         setTempCanvasSize(eventPlan.canvasSize);
         setPixelsPerMeter(eventPlan.pixelsPerMeter);
 
         // Rehydrate elements with icon components
         const rehydratedElements = eventPlan.elements.map((element: any) => {
-          // Find the original config by id to get the icon
-          const originalConfig = ELEMENT_CONFIGS.find(c => c.id === element.config.id);
+          // Find the original config by id/type to get the icon
+          const originalConfig = ELEMENT_CONFIGS.find(c => c.id === element.type);
           if (originalConfig) {
             return {
               ...element,
               config: {
-                ...element.config,
-                icon: originalConfig.icon
+                ...originalConfig,
+                id: element.type
               }
             };
           }
-          return element;
+          // Fallback to default config
+          return {
+            ...element,
+            config: ELEMENT_CONFIGS[0]
+          };
         });
 
         setLayoutElements(rehydratedElements);
-        setRoomBoundary(eventPlan.roomBoundary);
-        console.log('Loaded existing floor plan for event:', eventId);
+        setRoomBoundary(eventPlan.roomBoundary || null);
+        console.log('Loaded existing floor plan from Django backend:', eventId);
       } else {
         console.log('No existing floor plan found for event:', eventId);
       }
@@ -422,29 +427,35 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
         return;
       }
 
-      // Serialize elements for Firebase (remove icon component)
-      const serializedElements = layoutElements.map(element => {
-        const { config, ...rest } = element;
-        const { icon, ...serializableConfig } = config;
-        return {
-          ...rest,
-          config: serializableConfig
-        };
-      });
+      // Serialize elements for Django backend
+      const serializedElements = layoutElements.map(element => ({
+        id: element.id,
+        type: element.type,
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        rotation: element.rotation,
+        capacity: element.capacity,
+        name: element.name,
+        assignedGuests: element.assignedGuests, // Include seat assignments
+        radius: element.radius
+      }));
 
       const floorPlan = {
         eventId: eventId,
         canvasSize,
         pixelsPerMeter,
         elements: serializedElements,
-        roomBoundary,
+        roomBoundary: roomBoundary || undefined,
       };
 
-      console.log('Saving floor plan:', floorPlan);
+      console.log('Saving floor plan to Django backend:', floorPlan);
 
-      const savedPlan = await floorPlanService.saveFloorPlan(floorPlan);
-      setFloorPlanId(savedPlan.id || null);
-      console.log('Floor plan saved successfully:', savedPlan);
+      // Save to Django backend
+      const savedPlan = await floorPlanService.saveFloorPlanToDjango(floorPlan);
+      setFloorPlanId(savedPlan.eventId);
+      console.log('Floor plan saved successfully to Django backend:', savedPlan);
 
       alert('Floor plan saved successfully!');
 
@@ -860,38 +871,40 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
 
   const handleAssignGuest = async (guestId: string, elementId: string) => {
     try {
-      // Find the element to get its name for the table assignment
-      const element = layoutElements.find(el => el.id === elementId);
-      const tableName = element?.name || `Table ${elementId.slice(0, 8)}`;
-
-      // Update guest's table in Firebase
-      if (eventId) {
-        await guestService.assignTable(eventId, guestId, tableName);
-        console.log(`Assigned guest ${guestId} to table ${tableName}`);
+      if (!eventId) {
+        alert('No event ID available');
+        return;
       }
 
-      // Update local state
+      // Call Django backend API to assign seat
+      const result = await floorPlanService.assignGuestToSeat(eventId, guestId, elementId);
+
+      console.log(`✓ Assigned guest ${guestId} to ${result.element.element_name}`);
+
+      // Update local state to reflect the assignment
       setGuests(prevGuests =>
         prevGuests.map(g =>
-          g.id === guestId ? { ...g, tableId: tableName } : g
+          g.id === guestId ? { ...g, tableId: result.element.element_name } : g
         )
       );
 
-      // Remove guest from all other elements and add to selected element
+      // Update element assignments in local state
       setLayoutElements(elements =>
         elements.map(el => ({
           ...el,
           assignedGuests: el.id === elementId
-            ? [...el.assignedGuests, guestId]
-            : el.assignedGuests.filter(id => id !== guestId)
+            ? [...el.assignedGuests.filter(id => id !== guestId), guestId] // Add if not already there
+            : el.assignedGuests.filter(id => id !== guestId) // Remove from other elements
         }))
       );
-      
+
       setAssigningGuestId(null);
       setActiveGuestDropdown(null);
-    } catch (error) {
-      console.error('Error assigning guest to table:', error);
-      alert('Failed to assign guest to table. Please try again.');
+
+      alert(`Guest assigned to ${result.element.element_name} successfully!`);
+    } catch (error: any) {
+      console.error('Error assigning guest to seat:', error);
+      alert(error.message || 'Failed to assign guest to seat. Please try again.');
     }
   };
 
