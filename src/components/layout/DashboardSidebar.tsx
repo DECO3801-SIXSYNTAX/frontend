@@ -8,12 +8,19 @@ const navigation = [
   { name: "Seating View", href: "/vendor/seating", icon: Eye },
 ]
 
-interface DashboardSidebarProps {
-  isCollapsed?: boolean
-  setIsCollapsed?: (collapsed: boolean) => void
+function handleSignOut() {
+  // Clear all localStorage untuk menghindari konflik session
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('userEmail');
+  localStorage.removeItem('userRole');
+  localStorage.clear(); // Clear semua
+  console.log('✓ Session cleared - logging out');
+  window.location.href = '/signin';
 }
 
-export function DashboardSidebar({ isCollapsed, setIsCollapsed }: DashboardSidebarProps) {
+export function DashboardSidebar() {
   const location = useLocation()
 
   return (
@@ -40,6 +47,14 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }: DashboardSideb
             </Link>
           )
         })}
+        {/* Sign Out menu item */}
+        <button
+          onClick={handleSignOut}
+          className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full mt-6"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" /></svg>
+          <span>Sign Out</span>
+        </button>
       </nav>
     </aside>
   )

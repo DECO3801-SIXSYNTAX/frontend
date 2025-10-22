@@ -72,6 +72,12 @@ export function isAdmin(): boolean {
 }
 
 export function signOut() {
+  // Clear all localStorage untuk menghindari konflik session
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('userEmail');
+  localStorage.removeItem('userRole');
+  localStorage.clear(); // Clear semua
+  console.log('✓ Session cleared - user signed out');
 }

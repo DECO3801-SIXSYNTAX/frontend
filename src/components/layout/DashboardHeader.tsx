@@ -13,8 +13,15 @@ export function DashboardHeader() {
   const profileRef = useRef<HTMLDivElement>(null)
 
   function handleSignOut() {
+    // Clear all localStorage untuk menghindari konflik session
     localStorage.removeItem('access_token');
-    window.location.href = '/auth/sign-in';
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userRole');
+    localStorage.clear(); // Clear semua
+    console.log('✓ Session cleared - logging out');
+    window.location.href = '/signin';
   }
 
   useEffect(() => {

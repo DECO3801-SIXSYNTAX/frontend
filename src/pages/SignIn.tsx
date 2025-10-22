@@ -97,6 +97,17 @@ export default function SignIn() {
   // 🚪 state buat ending animation; saat true → AnimatePresence main-card akan exit
   const [exiting, setExiting] = useState(false);
 
+  // ✅ Auto-clear localStorage saat halaman login dibuka untuk menghindari konflik session
+  useEffect(() => {
+    // Clear old session jika ada
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userRole');
+    console.log('✓ Old session cleared - ready for fresh login');
+  }, []);
+
   // ✅ Opening animation terjadi otomatis karena AnimatePresence + initial="hidden" → animate="visible"
   // (tidak butuh kode khusus; cukup varian + AnimatePresence)
 
@@ -488,19 +499,23 @@ export default function SignIn() {
 
                 <GoogleButton
                   onSuccess={async (user) => {
-                    // GoogleButton already handles authentication with Django backend
-                    // The 'user' parameter is already the authenticated user from backend
+                    // Login with Google through Django backend
                     try {
-                      const userName = user.name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+                      const response = await djangoAuth.googleLogin(user.id, user.role);
+                      
+                      const backendUser = response.user;
+                      const userName = backendUser.first_name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
                       showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
                       // Set user data from backend
                       setCurrentUser({
-                        id: user.id,
-                        email: user.email,
-                        name: user.name || userName,
-                        role: user.role,
+                        id: backendUser.id,
+                        email: backendUser.email,
+                        name: backendUser.first_name && backendUser.last_name 
+                          ? `${backendUser.first_name} ${backendUser.last_name}`.trim()
+                          : backendUser.first_name || backendUser.username || userName,
+                        role: backendUser.role,
                         password: '' // No password for Google sign-in
                       });
 
@@ -508,9 +523,9 @@ export default function SignIn() {
                       setTimeout(() => setExiting(true), 350);
                       setTimeout(() => {
                         setCurrentPage('dashboard');
-                        if (user.role === 'admin') {
+                        if (backendUser.role === 'admin') {
                           navigate('/admin');
-                        } else if (user.role === 'vendor') {
+                        } else if (backendUser.role === 'vendor') {
                           navigate('/vendor');
                         } else {
                           navigate('/planner/dashboard');
