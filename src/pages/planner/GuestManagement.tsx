@@ -19,12 +19,11 @@ import {
   UserPlus
 } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext';
-import { Guest } from '../../services/GuestService'; // Keep Guest type for compatibility
-import { apiListGuests, apiCreateGuest, apiUpdateGuest, apiDeleteGuest, DjangoGuest } from '../../api/guest';
+import { GuestService, Guest } from '../../services/GuestService';
 import ImportGuestsModal from '../../components/modals/ImportGuestsModal';
 
 const GuestManagement: React.FC = () => {
-  const { events, setCurrentPage } = useDashboard();
+  const { events } = useDashboard();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -46,24 +45,14 @@ const GuestManagement: React.FC = () => {
     table: ''
   });
 
-  // Set current page on mount
-  useEffect(() => {
-    console.log('🔄 GuestManagement: Setting currentPage to dashboard');
-    setCurrentPage('dashboard');
-  }, [setCurrentPage]);
+  const guestService = new GuestService();
 
   // Use first event or selected event
   useEffect(() => {
-    console.log('Events from context:', events);
-    console.log('Number of events:', events?.length || 0);
-    if (events && events.length > 0) {
-      console.log('Event details:', events.map(e => ({ id: e.id, name: e.name })));
-      if (!selectedEventId) {
-        console.log('Auto-selecting first event:', events[0].id);
-        setSelectedEventId(events[0].id);
-      }
-    } else {
-      console.warn('No events available in context. Check DashboardContext.refreshData()');
+    console.log('Events:', events);
+    if (events && events.length > 0 && !selectedEventId) {
+      console.log('Setting first event:', events[0].id);
+      setSelectedEventId(events[0].id);
     }
   }, [events, selectedEventId]);
 
@@ -81,38 +70,12 @@ const GuestManagement: React.FC = () => {
     console.log('Loading guests for event:', selectedEventId);
     setLoading(true);
     try {
-      const response = await apiListGuests(selectedEventId);
-      console.log('Loaded guests from Django API:', response);
-      // Map Django guest format to current Guest interface
-      const guestsData = response.items.map(g => ({
-        id: g.id || '',
-        eventId: g.eventId,
-        name: g.name,
-        email: g.email,
-        phone: g.phone || '',
-        status: 'confirmed' as const, // Django doesn't have status field
-        dietaryNeeds: g.dietaryRestriction || '',
-        accessibility: g.accessibilityNeeds || '',
-        plusOne: false,
-        table: g.seat || ''
-      }));
+      const guestsData = await guestService.getGuestsByEvent(selectedEventId);
+      console.log('Loaded guests:', guestsData);
       setGuests(guestsData);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading guests:', error);
-      
-      // Show user-friendly error message
-      if (error.response?.status === 500) {
-        console.warn('⚠️ Backend requires Firestore indexes for guest listing.');
-        console.warn('📝 You can still ADD guests - they will be saved successfully!');
-        console.warn('💡 Guest listing will work once backend indexes are created.');
-        // Set empty array but allow adding guests
-      } else if (error.response?.status === 401) {
-        alert('Authentication failed. Please login again.');
-      } else {
-        console.warn('Failed to load guests, showing empty list');
-      }
-      
-      // Fallback to empty array (don't break the UI)
+      // Fallback to empty array
       setGuests([]);
     } finally {
       setLoading(false);
@@ -123,18 +86,10 @@ const GuestManagement: React.FC = () => {
     if (!selectedEventId) return;
     
     try {
-      // Use Django API instead of Firebase direct access
-      const result = await apiCreateGuest(selectedEventId, {
-        eventId: selectedEventId,
-        name: newGuest.name,
-        email: newGuest.email,
-        phone: newGuest.phone,
-        dietaryRestriction: newGuest.dietaryNeeds,
-        accessibilityNeeds: newGuest.accessibility
+      await guestService.addGuest(selectedEventId, {
+        ...newGuest,
+        eventId: selectedEventId
       });
-      
-      console.log('Guest created successfully:', result);
-      
       setShowAddModal(false);
       setNewGuest({
         name: '',
@@ -148,19 +103,9 @@ const GuestManagement: React.FC = () => {
         table: ''
       });
       await loadGuests();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding guest:', error);
-      
-      // Show specific error messages
-      if (error.response?.status === 500) {
-        alert('Server error: Failed to add guest. This may be due to backend configuration. Please check the console for details.');
-      } else if (error.response?.status === 401) {
-        alert('Authentication failed. Please login again.');
-      } else if (error.response?.data?.detail) {
-        alert(`Failed to add guest: ${error.response.data.detail}`);
-      } else {
-        alert('Failed to add guest. Please try again.');
-      }
+      alert('Failed to add guest. Please try again.');
     }
   };
 
@@ -173,30 +118,13 @@ const GuestManagement: React.FC = () => {
     if (!selectedEventId || !editingGuest) return;
     
     try {
-      // Use Django API
-      await apiUpdateGuest(selectedEventId, editingGuest.id, {
-        eventId: selectedEventId,
-        name: editingGuest.name,
-        email: editingGuest.email,
-        phone: editingGuest.phone,
-        dietaryRestriction: editingGuest.dietaryNeeds,
-        accessibilityNeeds: editingGuest.accessibility
-      });
+      await guestService.updateGuest(selectedEventId, editingGuest.id, editingGuest);
       setShowEditModal(false);
       setEditingGuest(null);
       await loadGuests();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating guest:', error);
-      
-      if (error.response?.status === 500) {
-        alert('Server error: Failed to update guest. Please check the console for details.');
-      } else if (error.response?.status === 401) {
-        alert('Authentication failed. Please login again.');
-      } else if (error.response?.data?.detail) {
-        alert(`Failed to update guest: ${error.response.data.detail}`);
-      } else {
-        alert('Failed to update guest. Please try again.');
-      }
+      alert('Failed to update guest. Please try again.');
     }
   };
 
@@ -205,21 +133,11 @@ const GuestManagement: React.FC = () => {
     
     if (confirm('Are you sure you want to delete this guest?')) {
       try {
-        // Use Django API
-        await apiDeleteGuest(selectedEventId, guestId);
+        await guestService.deleteGuest(selectedEventId, guestId);
         await loadGuests();
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error deleting guest:', error);
-        
-        if (error.response?.status === 500) {
-          alert('Server error: Failed to delete guest. Please check the console for details.');
-        } else if (error.response?.status === 401) {
-          alert('Authentication failed. Please login again.');
-        } else if (error.response?.data?.detail) {
-          alert(`Failed to delete guest: ${error.response.data.detail}`);
-        } else {
-          alert('Failed to delete guest. Please try again.');
-        }
+        alert('Failed to delete guest. Please try again.');
       }
     }
   };
@@ -228,15 +146,46 @@ const GuestManagement: React.FC = () => {
     if (!selectedEventId) return;
     
     try {
-      // Django API doesn't have status field, so we'll just reload
-      // If you need status tracking, add it to Django backend first
-      console.log('Status update requested but not implemented in Django API yet');
-      // await apiUpdateGuest(selectedEventId, guestId, { /* status field not in Django */ });
+      await guestService.updateRSVPStatus(selectedEventId, guestId, status);
       await loadGuests();
     } catch (error) {
       console.error('Error updating status:', error);
       alert('Failed to update status. Please try again.');
     }
+  };
+
+  const handleExportGuests = () => {
+    if (guests.length === 0) {
+      alert('No guests to export');
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Name', 'Email', 'Phone', 'Status', 'Dietary Needs', 'Accessibility', 'Plus One', 'Table'];
+    const csvContent = [
+      headers.join(','),
+      ...guests.map(guest => [
+        `"${guest.name}"`,
+        `"${guest.email}"`,
+        `"${guest.phone || ''}"`,
+        guest.status,
+        `"${guest.dietaryNeeds || ''}"`,
+        `"${guest.accessibility || ''}"`,
+        guest.plusOne ? 'Yes' : 'No',
+        `"${guest.table || ''}"`
+      ].join(','))
+    ].join('\n');
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `guests_${selectedEventId}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getStatusColor = (status: string) => {
@@ -282,7 +231,7 @@ const GuestManagement: React.FC = () => {
             </div>
             <div className="flex items-center space-x-4">
               {/* Event Selector */}
-              {events && events.length > 0 ? (
+              {events && events.length > 0 && (
                 <select
                   value={selectedEventId}
                   onChange={(e) => setSelectedEventId(e.target.value)}
@@ -295,20 +244,6 @@ const GuestManagement: React.FC = () => {
                     </option>
                   ))}
                 </select>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={selectedEventId}
-                    onChange={(e) => setSelectedEventId(e.target.value)}
-                    placeholder="Enter Event ID manually"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-sm"
-                    style={{ minWidth: '250px' }}
-                  />
-                  <span className="text-xs text-gray-500">
-                    (No events found - enter ID manually)
-                  </span>
-                </div>
               )}
               <button
                 onClick={() => setShowAddModal(true)}
@@ -439,12 +374,17 @@ const GuestManagement: React.FC = () => {
             <div className="flex space-x-2">
               <button 
                 onClick={() => setShowImportModal(true)}
-                className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={!selectedEventId}
+                className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Import
               </button>
-              <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={handleExportGuests}
+                disabled={guests.length === 0}
+                className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </button>
@@ -468,14 +408,6 @@ const GuestManagement: React.FC = () => {
                   ? 'Try adjusting your search or filter criteria'
                   : 'Start by adding your first guest'}
               </p>
-              {/* Info message about backend limitation */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 max-w-md mx-auto">
-                <p className="text-sm text-blue-800">
-                  <strong>ℹ️ Note:</strong> Guest listing requires backend Firestore indexes.
-                  <br />
-                  You can still <strong>add guests</strong> - they will be saved successfully!
-                </p>
-              </div>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"

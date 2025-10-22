@@ -21,6 +21,25 @@ export default function AdminDashboard() {
     ]).finally(() => setLoading(false));
   }, []);
 
+  // Get upcoming events (future dates only, sorted by date)
+  const getUpcomingEvents = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today
+
+    return events
+      .filter(e => {
+        if (!e.date) return false;
+        const eventDate = new Date(e.date);
+        return eventDate >= now;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        return dateA - dateB;
+      })
+      .slice(0, 5);
+  };
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -92,10 +111,10 @@ export default function AdminDashboard() {
           <div className="space-y-2">
             {loading ? (
               <div className="text-center py-8 text-slate-500">Loading events...</div>
-            ) : events.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 dark:text-slate-400">No events found</div>
+            ) : getUpcomingEvents().length === 0 ? (
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">No upcoming events</div>
             ) : (
-              events.slice(0, 5).map((e, idx) => (
+              getUpcomingEvents().map((e, idx) => (
                 <motion.div
                   key={e.id}
                   initial={{ opacity: 0, y: 10 }}
