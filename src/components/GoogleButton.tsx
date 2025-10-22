@@ -29,6 +29,23 @@ interface GoogleButtonProps {
   role?: 'planner' | 'vendor';
 }
 
+// Helper function to convert DjangoUser to frontend User format
+const convertDjangoUserToFrontendUser = (djangoUser: any): User => {
+  return {
+    id: djangoUser.id,
+    email: djangoUser.email,
+    password: '', // Not exposed
+    name: djangoUser.first_name && djangoUser.last_name
+      ? `${djangoUser.first_name} ${djangoUser.last_name}`.trim()
+      : djangoUser.first_name || djangoUser.username || djangoUser.email?.split('@')[0] || 'User',
+    role: djangoUser.role || 'guest',
+    company: djangoUser.company,
+    phone: djangoUser.phone,
+    experience: djangoUser.experience,
+    specialty: djangoUser.specialty
+  };
+};
+
 export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonProps) {
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const [showFallback, setShowFallback] = useState(false);
@@ -145,8 +162,9 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
       localStorage.setItem('access_token', authResponse.access);
       localStorage.setItem('refresh_token', authResponse.refresh);
 
-      // Call success callback with user data
-      onSuccess?.(authResponse.user);
+      // Convert and call success callback with user data
+      const frontendUser = convertDjangoUserToFrontendUser(authResponse.user);
+      onSuccess?.(frontendUser);
     } catch (error: any) {
       console.error('Fallback authentication error:', error);
       onError?.('Authentication failed. Please try again.');
@@ -186,8 +204,9 @@ export default function GoogleButton({ onSuccess, onError, role }: GoogleButtonP
       localStorage.setItem('access_token', authResponse.access);
       localStorage.setItem('refresh_token', authResponse.refresh);
 
-      // Call success callback with user data
-      onSuccess?.(authResponse.user);
+      // Convert and call success callback with user data
+      const frontendUser = convertDjangoUserToFrontendUser(authResponse.user);
+      onSuccess?.(frontendUser);
 
     } catch (error: any) {
       console.error('Google authentication error:', error);

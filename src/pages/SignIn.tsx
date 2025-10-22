@@ -1,7 +1,7 @@
 //src\pages\SignIn.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthService, User } from "../services/AuthService";
+import { User } from "../services/AuthService";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import GoogleButton from "../components/GoogleButton";
@@ -14,9 +14,7 @@ import type { CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useDashboard } from "../contexts/DashboardContext";
-import { djangoAuth } from "../services/DjangoAuthService";
-
-const authService = new AuthService();
+import { apiDjangoLogin } from "../api/auth";
 
 // =======================
 // 🎞️ Variants animasi (opening & ending)
@@ -128,23 +126,28 @@ export default function SignIn() {
     showMessage("Signing you in...", "loading");
 
     try {
-      // Login with Django backend
+      // Login with Django backend via auth.ts
       console.log('Attempting Django backend login...');
-      const response = await djangoAuth.login(email, password);
-      console.log('✓ Django login successful');
+      const response = await apiDjangoLogin(email, password);
+      console.log('✓ Django login successful:', response);
 
       const user = response.user;
-      
+
+      // Store JWT tokens
+      localStorage.setItem('access_token', response.access);
+      localStorage.setItem('refresh_token', response.refresh);
+
       // Convert backend user to frontend format
       const appUser = {
         id: user.id,
         email: user.email,
-        username: user.username,
-        name: user.first_name && user.last_name 
+        username: user.username || user.email,
+        name: user.first_name && user.last_name
           ? `${user.first_name} ${user.last_name}`.trim()
           : user.first_name || user.username || email.split('@')[0],
         role: user.role,
-        company: user.company
+        company: user.company,
+        password: '' // Not exposed
       };
 
       // ✅ Success → show message + trigger ending animation
@@ -202,8 +205,9 @@ export default function SignIn() {
     showMessage("Sending password reset email...", "loading");
 
     try {
-      await djangoAuth.requestPasswordReset(forgotEmail);
-      showMessage("If this email is registered, you will receive a password reset link shortly.", "success");
+      // TODO: Implement password reset via Django backend
+      // await apiRequestPasswordReset(forgotEmail);
+      showMessage("Password reset feature is coming soon. Please contact support.", "error");
       setShowForgotPassword(false);
       setForgotEmail("");
     } catch (error: any) {
@@ -499,23 +503,19 @@ export default function SignIn() {
 
                 <GoogleButton
                   onSuccess={async (user) => {
-                    // Login with Google through Django backend
+                    // GoogleButton already handles Django authentication
+                    // Just use the returned user data directly
                     try {
-                      const response = await djangoAuth.googleLogin(user.id, user.role);
-                      
-                      const backendUser = response.user;
-                      const userName = backendUser.first_name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+                      const userName = user.name || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
                       showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
-                      // Set user data from backend
+                      // Set user data from GoogleButton response
                       setCurrentUser({
-                        id: backendUser.id,
-                        email: backendUser.email,
-                        name: backendUser.first_name && backendUser.last_name 
-                          ? `${backendUser.first_name} ${backendUser.last_name}`.trim()
-                          : backendUser.first_name || backendUser.username || userName,
-                        role: backendUser.role,
+                        id: user.id,
+                        email: user.email,
+                        name: user.name || userName,
+                        role: user.role,
                         password: '' // No password for Google sign-in
                       });
 
@@ -523,9 +523,9 @@ export default function SignIn() {
                       setTimeout(() => setExiting(true), 350);
                       setTimeout(() => {
                         setCurrentPage('dashboard');
-                        if (backendUser.role === 'admin') {
+                        if (user.role === 'admin') {
                           navigate('/admin');
-                        } else if (backendUser.role === 'vendor') {
+                        } else if (user.role === 'vendor') {
                           navigate('/vendor');
                         } else {
                           navigate('/planner/dashboard');

@@ -1,6 +1,7 @@
 //src\pages\SignUp.tsx
 import React, { useState } from "react";
-import { AuthService, SignUpPayload } from "../services/AuthService";
+import { SignUpPayload } from "../services/AuthService";
+import { apiCreateUser } from "../api/auth";
 import Input from "../components/Input";
 
 import Button from "../components/Button";
@@ -19,8 +20,6 @@ import {
   Briefcase,
 } from "lucide-react";
 import { motion } from "framer-motion";
-
-const authService = new AuthService();
 
 interface SignUpProps {
   onBackToSignIn: () => void;
@@ -107,7 +106,11 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
     showMessage("Creating your account...", "loading");
 
     try {
-      const newUser = await authService.signUp(formData);
+      // Use Django backend registration instead of Firebase
+      const newUser = await apiCreateUser(formData);
+
+      console.log('✓ User registered successfully:', newUser);
+
       showMessage(
         `Welcome ${newUser.name}! Your account has been created successfully. Redirecting to sign in...`,
         "success"
@@ -117,17 +120,38 @@ export default function SignUp({ onBackToSignIn }: SignUpProps) {
         onBackToSignIn();
       }, 2000);
     } catch (err: any) {
+      console.error('Registration error:', err);
+
       let errorMessage = "Registration failed. Please try again.";
-      if (err.message === "User with this email already exists") {
-        errorMessage =
-          "An account with this email already exists. Please use a different email or sign in.";
-      } else if (err.message.includes("network")) {
-        errorMessage =
-          "Connection error. Please check your internet and try again.";
+
+      // Handle Django error responses
+      if (err.response?.data) {
+        const errorData = err.response.data;
+
+        // Handle field-specific errors
+        if (errorData.email) {
+          errorMessage = `Email: ${errorData.email[0]}`;
+        } else if (errorData.username) {
+          errorMessage = `Username: ${errorData.username[0]}`;
+        } else if (errorData.password) {
+          errorMessage = `Password: ${errorData.password[0]}`;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.non_field_errors) {
+          errorMessage = errorData.non_field_errors[0];
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
       } else if (err.message) {
-        // Display the actual error message from the backend
-        errorMessage = err.message;
+        if (err.message.includes("email already exists") || err.message.includes("already in use")) {
+          errorMessage = "An account with this email already exists. Please use a different email or sign in.";
+        } else if (err.message.includes("network") || err.message.includes("Network")) {
+          errorMessage = "Connection error. Please check your internet and try again.";
+        } else {
+          errorMessage = err.message;
+        }
       }
+
       showMessage(errorMessage, "error");
     }
   };

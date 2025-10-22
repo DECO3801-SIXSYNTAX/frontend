@@ -72,8 +72,14 @@ export class DjangoAuthService {
         this.storeAuthData(data);
         return data;
       }
-      
-      const error1 = await response1.text();
+
+      const error1 = await response1.json().catch(() => response1.text());
+      console.error('Login Strategy 1 failed:', {
+        status: response1.status,
+        statusText: response1.statusText,
+        error: error1,
+        username: usernameOrEmail
+      });
       lastError = error1;
     } catch (err) {
       lastError = err;
@@ -97,8 +103,14 @@ export class DjangoAuthService {
           this.storeAuthData(data);
           return data;
         }
-        
-        const error2 = await response2.text();
+
+        const error2 = await response2.json().catch(() => response2.text());
+        console.error('Login Strategy 2 failed:', {
+          status: response2.status,
+          statusText: response2.statusText,
+          error: error2,
+          username: usernameFromEmail
+        });
         lastError = error2;
       } catch (err) {
         lastError = err;

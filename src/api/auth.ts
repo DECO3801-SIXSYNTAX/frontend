@@ -65,11 +65,25 @@ export async function apiGetAllUsers(): Promise<User[]> {
   return res.data;
 }
 
+// Django User type (from backend)
+export interface DjangoUser {
+  id: string;
+  email: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  role: 'admin' | 'planner' | 'vendor' | 'guest';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
+
 // Google Authentication API
 export interface GoogleAuthResponse {
   refresh: string;
   access: string;
-  user: User;
+  user: DjangoUser;
   is_new_user: boolean;
   login_provider: string;
 }
@@ -167,6 +181,53 @@ export async function apiGoogleLogin(idToken: string, role?: string): Promise<Go
     }
 
     // For 400 errors, the issue is with the token/request - don't fall back, throw the error
+    throw error;
+  }
+}
+
+// Email/Password Authentication API
+export interface DjangoLoginResponse {
+  refresh: string;
+  access: string;
+  user: DjangoUser;
+}
+
+export async function apiDjangoLogin(email: string, password: string): Promise<DjangoLoginResponse> {
+  const payload = {
+    username: email,  // Django expects 'username' field, but we send email
+    password: password
+  };
+
+  console.log('Sending email/password login request to Django backend:', {
+    url: `${API_URL}/api/auth/login/`,
+    email: email
+  });
+
+  try {
+    const res = await axios.post<DjangoLoginResponse>(`${API_URL}/api/auth/login/`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    console.log('✓ Django backend login successful:', {
+      status: res.status,
+      hasData: !!res.data,
+      dataKeys: res.data ? Object.keys(res.data) : []
+    });
+
+    return res.data;
+  } catch (error: any) {
+    console.error('✗ Django backend login error:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      url: error.config?.url
+    });
+
     throw error;
   }
 }
