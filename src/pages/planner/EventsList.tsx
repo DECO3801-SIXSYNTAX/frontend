@@ -23,7 +23,7 @@ import CreateEventModal from '../../components/modals/CreateEventModal';
 import { Event } from '../../types/dashboard';
 
 const EventsList: React.FC = () => {
-  const { events, setCurrentPage, refreshData, currentUser } = useDashboard();
+  const { events, setEvents, setCurrentPage, refreshData, currentUser } = useDashboard();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -89,21 +89,36 @@ const EventsList: React.FC = () => {
     }
   };
 
-  const handleMarkAsDone = async (event: Event) => {
+  const handleChangeStatus = async (event: Event, newStatus: 'DRAFT' | 'PUBLISHED') => {
+    // Close dropdown immediately for better UX
+    setActiveDropdown(null);
+
+    // Optimistically update the UI immediately
+    const updatedEvents = events.map(e =>
+      e.id === event.id ? { ...e, status: newStatus } : e
+    );
+    setEvents(updatedEvents);
+
     try {
       await dashboardService.updateEvent(
         event.id,
-        { ...event, status: 'done' },
+        { ...event, status: newStatus },
         currentUser?.id || ''
       );
+      // Refresh to get the latest data from server
       await refreshData();
     } catch (error) {
-      console.error('Error marking event as done:', error);
+      console.error('Error changing event status:', error);
+      // Revert the optimistic update on error
+      await refreshData();
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'DRAFT': return 'bg-gray-100 text-gray-700';
+      case 'PUBLISHED': return 'bg-green-100 text-green-700';
+      // Keep old statuses for backward compatibility during transition
       case 'draft': return 'bg-gray-100 text-gray-700';
       case 'planning': return 'bg-blue-100 text-blue-700';
       case 'active': return 'bg-yellow-100 text-yellow-700';
@@ -191,11 +206,8 @@ const EventsList: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="all">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="planning">Planning</option>
-              <option value="active">Active</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="done">Done</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
             </select>
           </div>
 
@@ -272,31 +284,49 @@ const EventsList: React.FC = () => {
                         setIsCreateModalOpen(true);
                         setActiveDropdown(null);
                       }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg"
                     >
                       <Edit className="w-4 h-4 mr-3" />
                       Edit
                     </button>
-                    <button
-                      onClick={() => {
-                        handleMarkAsDone(event);
-                        setActiveDropdown(null);
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-3" />
-                      Mark as Done
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleDeleteEvent(event.id);
-                        setActiveDropdown(null);
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-3" />
-                      Delete
-                    </button>
+
+                    {/* Status change options */}
+                    <div className="border-t border-gray-100">
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                        Change Status
+                      </div>
+                      {event.status !== 'DRAFT' && (
+                        <button
+                          onClick={() => handleChangeStatus(event, 'DRAFT')}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <div className="w-2 h-2 rounded-full bg-gray-400 mr-3"></div>
+                          Mark as Draft
+                        </button>
+                      )}
+                      {event.status !== 'PUBLISHED' && (
+                        <button
+                          onClick={() => handleChangeStatus(event, 'PUBLISHED')}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <div className="w-2 h-2 rounded-full bg-green-400 mr-3"></div>
+                          Mark as Published
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          handleDeleteEvent(event.id);
+                          setActiveDropdown(null);
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                      >
+                        <Trash2 className="w-4 h-4 mr-3" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -146,9 +146,7 @@ const SidebarPlanner: React.FC<SidebarPlannerProps> = ({
                 <span>Active Events</span>
                 <span className="font-semibold bg-white bg-opacity-20 px-2 py-1 rounded">
                   {events ? events.filter(event =>
-                    event.status === 'active' ||
-                    event.status === 'planning' ||
-                    event.status === 'confirmed'
+                    event.status === 'PUBLISHED'
                   ).length : 0}
                 </span>
               </div>

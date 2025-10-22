@@ -254,6 +254,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
   const [dragElementType, setDragElementType] = useState<string | null>(null);
   const [isPanMode, setIsPanMode] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+  const [isMiddleMouseDown, setIsMiddleMouseDown] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 2000, height: 1500 });
   const [tempCanvasSize, setTempCanvasSize] = useState({ width: 2000, height: 1500 });
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -462,34 +463,15 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
     const oldSize = canvasSize;
     const newSize = tempCanvasSize;
 
-    // Only scale if canvas size actually changed
+    // Only change canvas size - DO NOT scale elements
+    // Elements should stay in their absolute positions
     if (oldSize.width !== newSize.width || oldSize.height !== newSize.height) {
-      const scaleX = newSize.width / oldSize.width;
-      const scaleY = newSize.height / oldSize.height;
-
-      setLayoutElements(elements =>
-        elements.map(element => ({
-          ...element,
-          x: element.x * scaleX,
-          y: element.y * scaleY,
-          width: element.width * scaleX,
-          height: element.height * scaleY,
-          radius: element.radius ? element.radius * Math.min(scaleX, scaleY) : undefined
-        }))
-      );
-
-      // Scale room boundary
-      if (roomBoundary) {
-        setRoomBoundary({
-          ...roomBoundary,
-          vertices: roomBoundary.vertices.map(v => ({
-            x: v.x * scaleX,
-            y: v.y * scaleY
-          }))
-        });
-      }
-
       setCanvasSize(newSize);
+
+      // Note: Elements are NOT scaled when canvas size changes
+      // They maintain their absolute positions and sizes
+      // If elements are outside the new canvas bounds, they'll still be there
+      // but may be clipped visually
     }
 
     // Update grid size based on pixels per meter
@@ -511,6 +493,25 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
   }, [selectedId]);
 
   // Constrain stage position to keep canvas in view
+  // Calculate minimum zoom scale to ensure canvas fills viewport
+  const getMinZoomScale = (): number => {
+    const container = containerRef.current;
+    if (!container) return 0.1;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Calculate scale needed to fit canvas exactly in viewport
+    const scaleToFitWidth = containerWidth / canvasSize.width;
+    const scaleToFitHeight = containerHeight / canvasSize.height;
+
+    // Use the larger of the two scales to ensure canvas fills viewport
+    // This means canvas will always be at least as large as viewport
+    const minScale = Math.max(scaleToFitWidth, scaleToFitHeight);
+
+    return minScale;
+  };
+
   const constrainStagePosition = (pos: { x: number; y: number }, scale: number): { x: number; y: number } => {
     const container = containerRef.current;
     if (!container) return pos;
@@ -520,23 +521,32 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
     const scaledCanvasWidth = canvasSize.width * scale;
     const scaledCanvasHeight = canvasSize.height * scale;
 
-    // Minimum visible area (at least 20% of canvas should be visible)
-    const minVisibleWidth = scaledCanvasWidth * 0.27;
-    const minVisibleHeight = scaledCanvasHeight * 0.27
-    ;
-
     let newX = pos.x;
     let newY = pos.y;
 
-    // Constrain X position
-    const maxX = containerWidth - minVisibleWidth;
-    const minX = -scaledCanvasWidth + minVisibleWidth;
-    newX = Math.max(minX, Math.min(maxX, newX));
+    // Keep canvas fully within viewport - no background visible
+    // If canvas is smaller than viewport, center it
+    // If canvas is larger than viewport, allow panning but keep edges within bounds
 
-    // Constrain Y position
-    const maxY = containerHeight - minVisibleHeight;
-    const minY = -scaledCanvasHeight + minVisibleHeight;
-    newY = Math.max(minY, Math.min(maxY, newY));
+    if (scaledCanvasWidth <= containerWidth) {
+      // Canvas fits horizontally - center it
+      newX = (containerWidth - scaledCanvasWidth) / 2;
+    } else {
+      // Canvas larger than viewport - constrain to edges
+      const maxX = 0; // Left edge of canvas at left edge of viewport
+      const minX = containerWidth - scaledCanvasWidth; // Right edge at right edge
+      newX = Math.max(minX, Math.min(maxX, newX));
+    }
+
+    if (scaledCanvasHeight <= containerHeight) {
+      // Canvas fits vertically - center it
+      newY = (containerHeight - scaledCanvasHeight) / 2;
+    } else {
+      // Canvas larger than viewport - constrain to edges
+      const maxY = 0; // Top edge of canvas at top edge of viewport
+      const minY = containerHeight - scaledCanvasHeight; // Bottom edge at bottom edge
+      newY = Math.max(minY, Math.min(maxY, newY));
+    }
 
     return { x: newX, y: newY };
   };
@@ -556,7 +566,8 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
     };
 
     const newScale = e.evt.deltaY > 0 ? stageScale / scaleBy : stageScale * scaleBy;
-    const clampedScale = Math.max(0.1, Math.min(5, newScale));
+    const minScale = getMinZoomScale();
+    const clampedScale = Math.max(minScale, Math.min(5, newScale));
 
     setStageScale(clampedScale);
 
@@ -572,8 +583,30 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
   const handleZoom = (direction: 'in' | 'out') => {
     const scaleBy = 1.2;
     const newScale = direction === 'in' ? stageScale * scaleBy : stageScale / scaleBy;
-    const clampedScale = Math.max(0.1, Math.min(5, newScale));
+    const minScale = getMinZoomScale();
+    const clampedScale = Math.max(minScale, Math.min(5, newScale));
+
+    // Calculate the center of the viewport
+    const containerWidth = containerRef.current?.clientWidth || 800;
+    const containerHeight = containerRef.current?.clientHeight || 600;
+    const centerX = containerWidth / 2;
+    const centerY = containerHeight / 2;
+
+    // Calculate the point in the canvas that's currently at the center
+    const mousePointTo = {
+      x: (centerX - stagePosition.x) / stageScale,
+      y: (centerY - stagePosition.y) / stageScale
+    };
+
+    // Calculate new position to keep the same point at the center
+    const newPos = {
+      x: centerX - mousePointTo.x * clampedScale,
+      y: centerY - mousePointTo.y * clampedScale
+    };
+
     setStageScale(clampedScale);
+    const constrainedPos = constrainStagePosition(newPos, clampedScale);
+    setStagePosition(constrainedPos);
   };
 
   const handleMouseDown = (type: string) => {
@@ -915,8 +948,15 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
         rotation={element.rotation}
         draggable={mode === 'edit'}
         onClick={() => mode === 'edit' && setSelectedId(element.id)}
-        onDragStart={() => setIsDraggingElement(true)}
+        onDragStart={(e: any) => {
+          setIsDraggingElement(true);
+          e.cancelBubble = true; // Prevent event from bubbling to Stage
+        }}
+        onDragMove={(e: any) => {
+          e.cancelBubble = true; // Prevent event from bubbling to Stage during drag
+        }}
         onDragEnd={(e: any) => {
+          e.cancelBubble = true; // Prevent event from bubbling to Stage
           setIsDraggingElement(false);
           let newX = snapToGrid ? Math.round(e.target.x() / gridSize) * gridSize : e.target.x();
           let newY = snapToGrid ? Math.round(e.target.y() / gridSize) * gridSize : e.target.y();
@@ -1548,7 +1588,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
             x={stagePosition.x}
             y={stagePosition.y}
             onWheel={handleWheel}
-            draggable={isPanMode || mode === 'preview'}
+            draggable={!isDraggingElement}
             onDragStart={() => setIsPanning(true)}
             onDragEnd={(e: any) => {
               setIsPanning(false);
@@ -1559,7 +1599,19 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
               e.target.y(constrainedPos.y);
             }}
             onClick={handleStageClick}
-            onMouseUp={handleStageMouseUp}
+            onMouseDown={(e: any) => {
+              // Enable panning with middle mouse button (button 1)
+              if (e.evt.button === 1) {
+                e.evt.preventDefault();
+                setIsMiddleMouseDown(true);
+              }
+            }}
+            onMouseUp={(e: any) => {
+              if (e.evt.button === 1) {
+                setIsMiddleMouseDown(false);
+              }
+              handleStageMouseUp(e);
+            }}
             onMouseMove={handleStageMouseMove}
           >
             <Layer>
@@ -1664,7 +1716,14 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
                       stroke="#FFFFFF"
                       strokeWidth={2}
                       draggable={mode === 'edit' && !isDrawingRoom}
+                      onDragStart={(e: any) => {
+                        e.cancelBubble = true;
+                      }}
+                      onDragMove={(e: any) => {
+                        e.cancelBubble = true;
+                      }}
                       onDragEnd={(e: any) => {
+                        e.cancelBubble = true;
                         const newVertices = [...roomBoundary.vertices];
                         newVertices[i] = { x: e.target.x(), y: e.target.y() };
                         setRoomBoundary({ ...roomBoundary, vertices: newVertices });

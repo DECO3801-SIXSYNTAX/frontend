@@ -132,7 +132,7 @@ export class DashboardService {
       const newEvent = {
         ...eventData,
         actualAttendees: 0,
-        status: 'draft',
+        status: 'DRAFT',
         createdBy: currentUserId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -705,6 +705,11 @@ export class DashboardService {
 
       console.log(`Total guests collected: ${allGuests.length}`);
 
+      // Debug: Log a sample guest to see field names
+      if (allGuests.length > 0) {
+        console.log('Sample guest data:', allGuests[0]);
+      }
+
       // Calculate statistics from actual guest data
       const totalGuests = allGuests.length;
       
@@ -717,19 +722,32 @@ export class DashboardService {
       // Count guests with dietary needs
       const dietaryNeeds = allGuests.filter(guest => {
         const guestAny = guest as any;
-        return guestAny.dietaryNeeds && guestAny.dietaryNeeds.trim() !== '' && guestAny.dietaryNeeds.toLowerCase() !== 'none';
+        // Check both possible field names: dietaryRestrictions (frontend) and dietaryRestriction (backend)
+        const dietary = guestAny.dietaryRestrictions || guestAny.dietaryRestriction || '';
+        return dietary && dietary.trim() !== '' && dietary.toLowerCase() !== 'none';
       }).length;
-      
+
       // Count guests with accessibility needs
       const accessibilityNeeds = allGuests.filter(guest => {
         const guestAny = guest as any;
-        return guestAny.accessibility && guestAny.accessibility.trim() !== '' && guestAny.accessibility.toLowerCase() !== 'none';
+        // Check both possible field names: accessibilityNeeds (both frontend and backend)
+        const accessibility = guestAny.accessibilityNeeds || '';
+        return accessibility && accessibility.trim() !== '' && accessibility.toLowerCase() !== 'none';
       }).length;
+
+      console.log('Statistics calculated:', {
+        totalGuests,
+        assignedSeats,
+        dietaryNeeds,
+        accessibilityNeeds,
+        sampleDietary: allGuests.length > 0 ? (allGuests[0] as any).dietaryRestrictions || (allGuests[0] as any).dietaryRestriction : 'N/A',
+        sampleAccessibility: allGuests.length > 0 ? (allGuests[0] as any).accessibilityNeeds : 'N/A'
+      });
 
       // Calculate completion rate based on events
       const totalEvents = events.length;
       const completedEvents = events.filter(event =>
-        event.status === 'done'
+        event.status === 'PUBLISHED'
       ).length;
       const completionRate = totalEvents > 0 ? (completedEvents / totalEvents) * 100 : 0;
 
@@ -777,11 +795,15 @@ export class DashboardService {
           }).length;
           const dietaryNeeds = guests.filter(guest => {
             const guestAny = guest as any;
-            return guestAny.dietaryNeeds && guestAny.dietaryNeeds.trim() !== '' && guestAny.dietaryNeeds.toLowerCase() !== 'none';
+            // Check both possible field names: dietaryRestrictions (frontend) and dietaryRestriction (backend)
+            const dietary = guestAny.dietaryRestrictions || guestAny.dietaryRestriction || '';
+            return dietary && dietary.trim() !== '' && dietary.toLowerCase() !== 'none';
           }).length;
           const accessibilityNeeds = guests.filter(guest => {
             const guestAny = guest as any;
-            return guestAny.accessibility && guestAny.accessibility.trim() !== '' && guestAny.accessibility.toLowerCase() !== 'none';
+            // Check both possible field names: accessibilityNeeds (both frontend and backend)
+            const accessibility = guestAny.accessibilityNeeds || '';
+            return accessibility && accessibility.trim() !== '' && accessibility.toLowerCase() !== 'none';
           }).length;
 
           return {

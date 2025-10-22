@@ -177,7 +177,7 @@ const ImportGuestsModal: React.FC<ImportGuestsModalProps> = ({ isOpen, onClose }
       setImportResults({
         successful: 0,
         failed: 0,
-        errors: ['No file selected']
+        errors: ['Please select a file to import']
       });
       setStep('result');
       return;
@@ -186,20 +186,24 @@ const ImportGuestsModal: React.FC<ImportGuestsModalProps> = ({ isOpen, onClose }
     setIsProcessing(true);
 
     try {
-      // Send the CSV file directly to the backend
-      const result = await dashboardService.importGuestsFromCSV(selectedFile, selectedEventId);
+      // Use the new importGuestsFromCSV method that goes through Django backend
+      const result: any = await dashboardService.importGuestsFromCSV(selectedFile, selectedEventId);
       await refreshData();
 
-      // Backend returns { imported: X, skipped: Y }
-      const importedCount = result.imported || 0;
-      const skippedCount = result.skipped || 0;
+      // Backend returns {imported: number, skipped: [{line: number, reason: string}]}
+      const imported = result.imported || 0;
+      const skippedArray = Array.isArray(result.skipped) ? result.skipped : [];
+      const skippedCount = skippedArray.length;
 
-      console.log('Import result:', { imported: importedCount, skipped: skippedCount });
+      // Convert skipped array to error messages
+      const errorMessages = skippedArray.map((item: any) =>
+        `Line ${item.line}: ${item.reason}`
+      );
 
       setImportResults({
-        successful: importedCount,
+        successful: imported,
         failed: skippedCount,
-        errors: skippedCount > 0 ? [`${skippedCount} guests were skipped (may already exist)`] : []
+        errors: errorMessages.slice(0, 10) // Show only first 10 errors
       });
       setStep('result');
     } catch (error: any) {
