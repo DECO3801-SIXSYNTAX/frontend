@@ -1,118 +1,146 @@
+"use client"
+
+// qrscan.tsx
 import { useState, useRef, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent } from "../../components/ui/card"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../components/ui/sheet"
-import { Upload, HelpCircle, AlertCircle, Play, Square, Camera } from "lucide-react"
-
-// Import jsQR properly
-import jsQR from 'jsqr'
+import { QrCode, HelpCircle, AlertCircle, Square } from "lucide-react"
+import jsQR from "jsqr"
 
 export function QrScan() {
   console.log("QrScan component loaded")
-  
+
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const eventId = searchParams.get("eventId") || "default-event"
   const fromVerify = searchParams.get("fromVerify") === "true"
 
-  // Add custom CSS animation
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.textContent = `
-      @keyframes scanLine {
-        0% { transform: translateY(-50%) translateX(-100%); opacity: 0; }
-        20% { opacity: 1; }
-        80% { opacity: 1; }
-        100% { transform: translateY(-50%) translateX(100%); opacity: 0; }
-      }
-    `
-    document.head.appendChild(style)
-    return () => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style)
-      }
-    }
-  }, [])
+  // DOM refs
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Scan loop refs
+  const rafRef = useRef<number | null>(null)
+  const scanningRef = useRef(false)
+  const lastTextRef = useRef<string>("")
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
   const hasRestartedRef = useRef(false)
+
+  // QR tracking overlay refs
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null)
+  const [qrCorners, setQrCorners] = useState<{x: number, y: number}[] | null>(null)
+
+  // Real-time scanning metrics
+  const [scanMetrics, setScanMetrics] = useState({
+    totalScans: 0,
+    successfulScans: 0,
+    avgScanTime: 0,
+    lastScanTime: 0,
+    scanningStartTime: Date.now(),
+    currentFPS: 0
+  })
+
+  // Real-time clock state
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // UI state
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
-  const [manualToken, setManualToken] = useState("")
   const [isStartingCamera, setIsStartingCamera] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
-  const [isManualScanning, setIsManualScanning] = useState(false)
-  const [detectedQR, setDetectedQR] = useState<{data: string, location: {topLeftCorner: {x: number, y: number}, topRightCorner: {x: number, y: number}, bottomLeftCorner: {x: number, y: number}, bottomRightCorner: {x: number, y: number}}} | null>(null)
-  const [invalidQR, setInvalidQR] = useState<{data: string, location: {topLeftCorner: {x: number, y: number}, topRightCorner: {x: number, y: number}, bottomLeftCorner: {x: number, y: number}, bottomRightCorner: {x: number, y: number}}} | null>(null)
+  const [detectedQR, setDetectedQR] = useState<string | null>(null)
+  const [invalidQR, setInvalidQR] = useState<string | null>(null)
 
+  // Update time every second
   useEffect(() => {
-    // Reset restart flag for fresh mount
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // Initial mount: clean up any old stream and start camera
+  useEffect(() => {
     hasRestartedRef.current = false
-    
-    // Clean up any existing stream first
+    scanningRef.current = false
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     if (stream) {
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach((t) => t.stop())
       setStream(null)
     }
-    
-    // Reset states
     setIsScanning(false)
-    setIsManualScanning(false)
     setDetectedQR(null)
     setCameraError(null)
-    
-    // Start fresh
     startCamera()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop())
+      scanningRef.current = false
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (stream) stream.getTracks().forEach((track) => track.stop())
+    }
+  }, [stream])
+
+  // Initialize overlay canvas
+  useEffect(() => {
+    const overlayCanvas = overlayCanvasRef.current
+    if (!overlayCanvas) return
+
+    const ctx = overlayCanvas.getContext('2d')
+    if (!ctx) return
+
+    overlayCtxRef.current = ctx
+
+    // Set canvas size to match video
+    const updateCanvasSize = () => {
+      const video = videoRef.current
+      if (!video) return
+
+      overlayCanvas.width = video.videoWidth || video.clientWidth
+      overlayCanvas.height = video.videoHeight || video.clientHeight
+    }
+
+    // Update size when video loads
+    const video = videoRef.current
+    if (video) {
+      video.addEventListener('loadedmetadata', updateCanvasSize)
+      video.addEventListener('resize', updateCanvasSize)
+    }
+
+    return () => {
+      if (video) {
+        video.removeEventListener('loadedmetadata', updateCanvasSize)
+        video.removeEventListener('resize', updateCanvasSize)
       }
     }
   }, [stream])
 
-  // Handle when user returns from verify page
   useEffect(() => {
     if (fromVerify && !hasRestartedRef.current) {
-      console.log("User returned from verify page, restarting camera...")
+      console.log("User returned from verify page, restarting camera…")
       hasRestartedRef.current = true
-      
-      // Force restart camera immediately
-      const restartCamera = () => {
-        console.log("Force restarting camera...")
-        
-        // Stop any existing tracks
-        if (videoRef.current && videoRef.current.srcObject) {
-          const existingStream = videoRef.current.srcObject as MediaStream
-          existingStream.getTracks().forEach(track => {
-            console.log("Stopping track:", track.kind)
-            track.stop()
-          })
-        }
-        
-        // Clear video source
-        if (videoRef.current) {
-          videoRef.current.srcObject = null
-        }
-        
-        // Reset states
-        setIsScanning(false)
-        setIsManualScanning(false)
-        setDetectedQR(null)
-        setCameraError(null)
-        setStream(null)
-        
-        // Start fresh camera after a short delay
-        setTimeout(() => {
-          console.log("Starting fresh camera after cleanup...")
-          startCamera()
-        }, 500)
+      scanningRef.current = false
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (videoRef.current?.srcObject) {
+        ;(videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => {
+          console.log("Stopping track:", track.kind)
+          track.stop()
+        })
       }
-      
-      restartCamera()
+      if (videoRef.current) videoRef.current.srcObject = null
+      setIsScanning(false)
+      setDetectedQR(null)
+      setCameraError(null)
+      setStream(null)
+      setTimeout(() => {
+        console.log("Starting fresh camera after cleanup…")
+        startCamera()
+      }, 400)
     }
   }, [fromVerify])
 
@@ -121,68 +149,53 @@ export function QrScan() {
     try {
       setIsStartingCamera(true)
       setCameraError(null)
-    
-    console.log("Starting camera...")
-    
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+
+      if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera not supported on this device")
       }
 
-      try {
-        // Simple, reliable camera settings
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        })
-        
-        console.log("Camera stream obtained:", mediaStream)
-        setStream(mediaStream)
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream
-          videoRef.current.onloadedmetadata = () => {
-            console.log("Video metadata loaded")
-            console.log("Attempting to play video...")
-            videoRef.current?.play().then(() => {
-              console.log("Video play() resolved successfully")
-            }).catch((error) => {
-              console.error("Video play() failed:", error)
-            })
-          }
-          videoRef.current.onplaying = () => {
-            console.log("=== Video is playing ===")
-            console.log("isManualScanning:", isManualScanning)
-            console.log("Auto-starting QR scanning")
-            setIsScanning(true)
-            setTimeout(() => startQRScanning(), 100) // Small delay to ensure video is ready
-          }
-          videoRef.current.onerror = (e) => {
-            console.error("Video error:", e)
-            setCameraError("Failed to start video stream")
-          }
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      })
+
+      console.log("Camera stream obtained:", mediaStream)
+      setStream(mediaStream)
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream
+
+        videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded → attempting play()")
+          videoRef.current?.play().catch((err) => console.error("video.play() failed:", err))
         }
-      } catch (error) {
-        console.log("Camera access failed:", error)
-        throw error
+
+        videoRef.current.onplaying = () => {
+          console.log("=== Video is playing ===")
+          // Auto-start scanning when camera is ready
+          scanningRef.current = true
+          setIsScanning(true)
+          startQRScanning()
+        }
+
+        videoRef.current.onerror = (e) => {
+          console.error("Video error:", e)
+          setCameraError("Failed to start video stream")
+        }
       }
     } catch (error: any) {
       console.error("Camera error:", error)
-      let errorMessage = "Failed to access camera"
-      
-      if (error.name === 'NotAllowedError') {
-        errorMessage = "Camera access denied. Please allow camera access and refresh the page."
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = "No camera found on this device"
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage = "Camera not supported on this device"
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = "Camera is being used by another application"
-      }
-      
-      setCameraError(errorMessage)
+      let msg = "Failed to access camera"
+      if (error?.name === "NotAllowedError")
+        msg = "Camera access denied. Please allow camera access and refresh the page."
+      else if (error?.name === "NotFoundError") msg = "No camera found on this device"
+      else if (error?.name === "NotSupportedError") msg = "Camera not supported on this device"
+      else if (error?.name === "NotReadableError") msg = "Camera is being used by another application"
+      setCameraError(msg)
     } finally {
       setIsStartingCamera(false)
     }
@@ -190,99 +203,86 @@ export function QrScan() {
 
   const startQRScanning = () => {
     console.log("startQRScanning called")
-    console.log("videoRef.current:", videoRef.current)
-    console.log("canvasRef.current:", canvasRef.current)
-    console.log("isScanning:", isScanning)
-    
-    if (!videoRef.current || !canvasRef.current) {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) {
       console.log("Missing video or canvas ref")
       return
     }
-    
-    console.log("Starting QR scanning...")
-    
-    const scan = () => {
-      const video = videoRef.current
-      const canvas = canvasRef.current
-      
-      if (!video || !canvas) {
-        console.log("Video or canvas not available")
-        return
-      }
-      
-      if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-        console.log("Video not ready, readyState:", video.readyState)
-        if (isScanning) {
-          requestAnimationFrame(scan)
-        }
-        return
-      }
 
-      const context = canvas.getContext('2d')
-      if (!context) {
+    // Reset scanning start time
+    setScanMetrics(prev => ({
+      ...prev,
+      scanningStartTime: Date.now()
+    }))
+
+    let ctx = ctxRef.current
+    if (!ctx) {
+      ctx = canvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D | null
+      if (!ctx) {
         console.log("Canvas context not available")
         return
       }
+      ctxRef.current = ctx
+    }
 
-      // Optimize canvas size for better QR detection
-      const scale = 0.8 // Better balance between performance and detection
-      canvas.width = video.videoWidth * scale
-      canvas.height = video.videoHeight * scale
-      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const scale = 0.8
+    canvas.width = Math.max(1, (video.videoWidth || 640) * scale)
+    canvas.height = Math.max(1, (video.videoHeight || 480) * scale)
 
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-      
+    const scan = () => {
+      if (!scanningRef.current) return
+      rafRef.current = requestAnimationFrame(scan)
+      if (video.readyState < video.HAVE_CURRENT_DATA) return
+
+      ctx!.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const { data, width, height } = ctx!.getImageData(0, 0, canvas.width, canvas.height)
+
       try {
-        // Simple, fast QR detection
-        const code = jsQR(imageData.data, imageData.width, imageData.height)
-        
-        if (code) {
-          console.log("QR Code detected:", code.data)
+        const code = jsQR(data, width, height)
+        if (code?.data) {
+          // Draw QR tracking overlay
+          drawQROverlay(code.location)
           
-          // Check if this is a valid QR code for our system
-          const isValidQR = isValidQRCode(code.data)
-          
-          if (isValidQR) {
-            // Store detected QR with location for tracking
-            setDetectedQR({
-              data: code.data,
-              location: code.location
-            })
-            setInvalidQR(null) // Clear invalid QR
-            
-            // Auto-process immediately for maximum responsiveness
-            setTimeout(() => {
-              setIsScanning(false)
-              setIsManualScanning(false)
-              handleQRDetected(code.data)
-            }, 200) // Very short delay just to show tracking
-            return
+          if (code.data === lastTextRef.current) return
+          lastTextRef.current = code.data
+
+          const isValid = isValidQRCode(code.data)
+          if (isValid) {
+            setDetectedQR(code.data)
+            setInvalidQR(null)
+            scanningRef.current = false
+            setIsScanning(false)
+
+            // Update metrics
+            const scanTime = (Date.now() - scanMetrics.scanningStartTime) / 1000
+            updateScanMetrics(true, scanTime)
+
+            try {
+              ;(video.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop())
+            } catch {}
+
+            handleQRDetected(code.data)
           } else {
-            // Store invalid QR for visual feedback
-            setInvalidQR({
-              data: code.data,
-              location: code.location
-            })
-            setDetectedQR(null) // Clear valid QR
+            setInvalidQR(code.data)
+            setDetectedQR(null)
             
-            // Clear invalid QR quickly
-            setTimeout(() => {
-              setInvalidQR(null)
-            }, 1000)
+            // Update metrics for invalid QR
+            const scanTime = (Date.now() - scanMetrics.scanningStartTime) / 1000
+            updateScanMetrics(false, scanTime)
+            
+            setTimeout(() => setInvalidQR(null), 1000)
           }
         } else {
-          // Clear both detected and invalid QR if no code found
+          // No QR detected, clear overlay
+          drawQROverlay(null)
           setDetectedQR(null)
           setInvalidQR(null)
         }
-      } catch (error) {
-        console.error("QR detection error:", error)
+      } catch (err) {
+        console.error("QR detection error:", err)
+        drawQROverlay(null)
         setDetectedQR(null)
-      }
-
-      if (isScanning) {
-        // Use requestAnimationFrame for smooth, efficient scanning
-        requestAnimationFrame(scan)
       }
     }
 
@@ -290,21 +290,22 @@ export function QrScan() {
   }
 
   const isValidQRCode = (qrData: string): boolean => {
-    // Check if QR code contains valid token format
-    // Valid formats: direct token, URL with token parameter, or base64 encoded token
     if (!qrData || qrData.length < 10) return false
-    
-    // Check for token parameter in URL
-    if (qrData.includes('token=')) {
-      const urlParams = new URLSearchParams(qrData.split('?')[1])
-      const token = urlParams.get('token')
-      return !!(token && token.length > 10)
+
+    if (qrData.includes("token=")) {
+      try {
+        const url = new URL(qrData)
+        const token = url.searchParams.get("token")
+        return !!(token && token.length > 10)
+      } catch {
+        const qs = qrData.split("?")[1] || ""
+        const token = new URLSearchParams(qs).get("token")
+        return !!(token && token.length > 10)
+      }
     }
-    
-    // Check for direct token (should be reasonably long)
+
     if (qrData.length > 20) return true
-    
-    // Check for base64 encoded token
+
     try {
       const decoded = atob(qrData)
       return decoded.length > 10
@@ -313,468 +314,385 @@ export function QrScan() {
     }
   }
 
+  // Draw QR tracking overlay (iOS-style)
+  const drawQROverlay = (location: any) => {
+    const overlayCanvas = overlayCanvasRef.current
+    const overlayCtx = overlayCtxRef.current
+    if (!overlayCanvas || !overlayCtx) return
+
+    // Clear canvas
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
+
+    if (!location || !location.topLeftCorner || !location.topRightCorner || !location.bottomLeftCorner || !location.bottomRightCorner) {
+      setQrCorners(null)
+      return
+    }
+
+    // Scale corners to overlay canvas size
+    const video = videoRef.current
+    if (!video) return
+
+    const scaleX = overlayCanvas.width / video.videoWidth
+    const scaleY = overlayCanvas.height / video.videoHeight
+
+    const corners = [
+      { x: location.topLeftCorner.x * scaleX, y: location.topLeftCorner.y * scaleY },
+      { x: location.topRightCorner.x * scaleX, y: location.topRightCorner.y * scaleY },
+      { x: location.bottomRightCorner.x * scaleX, y: location.bottomRightCorner.y * scaleY },
+      { x: location.bottomLeftCorner.x * scaleX, y: location.bottomLeftCorner.y * scaleY }
+    ]
+
+    // Draw QR code outline with glow effect
+    overlayCtx.strokeStyle = '#00ff00'
+    overlayCtx.lineWidth = 3
+    overlayCtx.shadowColor = '#00ff00'
+    overlayCtx.shadowBlur = 10
+    overlayCtx.lineCap = 'round'
+    overlayCtx.lineJoin = 'round'
+
+    overlayCtx.beginPath()
+    overlayCtx.moveTo(corners[0].x, corners[0].y)
+    overlayCtx.lineTo(corners[1].x, corners[1].y)
+    overlayCtx.lineTo(corners[2].x, corners[2].y)
+    overlayCtx.lineTo(corners[3].x, corners[3].y)
+    overlayCtx.closePath()
+    overlayCtx.stroke()
+
+    // Draw corner indicators (iOS-style)
+    const cornerSize = 20
+    corners.forEach((corner) => {
+      overlayCtx.beginPath()
+      overlayCtx.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI)
+      overlayCtx.fillStyle = '#00ff00'
+      overlayCtx.fill()
+      overlayCtx.strokeStyle = '#ffffff'
+      overlayCtx.lineWidth = 2
+      overlayCtx.stroke()
+    })
+
+    setQrCorners(corners)
+  }
+
+  // Update scan metrics
+  const updateScanMetrics = (success: boolean, scanTime: number) => {
+    setScanMetrics(prev => ({
+      ...prev,
+      totalScans: prev.totalScans + 1,
+      successfulScans: success ? prev.successfulScans + 1 : prev.successfulScans,
+      avgScanTime: prev.totalScans > 0 ? (prev.avgScanTime * prev.totalScans + scanTime) / (prev.totalScans + 1) : scanTime,
+      lastScanTime: scanTime
+    }))
+  }
+
   const handleQRDetected = (qrData: string) => {
     console.log("QR Data received:", qrData)
-    
-    // Extract token from QR data (handle both direct token and URL with token)
+
     let token = qrData
-    if (qrData.includes('token=')) {
-      const urlParams = new URLSearchParams(qrData.split('?')[1])
-      token = urlParams.get('token') || qrData
-    }
-    
-    console.log("Extracted token:", token)
-    navigate(`/kiosk/verify?eventId=${eventId}&token=${token}`)
-  }
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        
-        const context = canvas.getContext('2d')
-        if (!context) return
-        
-        canvas.width = img.width
-        canvas.height = img.height
-        context.drawImage(img, 0, 0)
-        
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-        
-        try {
-          const code = jsQR(imageData.data, imageData.width, imageData.height)
-          if (code) {
-            handleQRDetected(code.data)
-          } else {
-            alert("No QR code found in the uploaded image")
-          }
-        } catch (error) {
-          console.error("QR detection error:", error)
-          alert("Error processing QR code")
-        }
+    if (qrData.includes("token=")) {
+      try {
+        const url = new URL(qrData)
+        token = url.searchParams.get("token") || qrData
+      } catch {
+        const qs = qrData.split("?")[1] || ""
+        token = new URLSearchParams(qs).get("token") || qrData
       }
-      img.src = e.target?.result as string
     }
-    reader.readAsDataURL(file)
-  }
 
-  const handleStartScanning = () => {
-    console.log("Starting manual scanning")
-    setIsManualScanning(true)
-    setIsScanning(true)
-    setTimeout(() => startQRScanning(), 100)
+    const scanId = Date.now().toString()
+    console.log("Extracted token:", token, "scanId:", scanId)
+
+    navigate(
+      `/kiosk/verify?eventId=${encodeURIComponent(eventId)}&token=${encodeURIComponent(
+        token,
+      )}&scan=${encodeURIComponent(scanId)}`,
+    )
   }
 
   const handleStopScanning = () => {
     console.log("Stopping scanning")
+    scanningRef.current = false
     setIsScanning(false)
-    setIsManualScanning(false)
-  }
-
-  const handleManualSubmit = () => {
-    if (manualToken.trim()) {
-      navigate(`/kiosk/verify?eventId=${eventId}&token=${manualToken.trim()}`)
-    }
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    
+    // Clear QR tracking overlay
+    drawQROverlay(null)
+    
+    // Reset detected QR states
+    setDetectedQR(null)
+    setInvalidQR(null)
+    
+    // Reset scanning start time for next scan
+    setScanMetrics(prev => ({
+      ...prev,
+      scanningStartTime: Date.now()
+    }))
   }
 
   console.log("QrScan render - eventId:", eventId, "stream:", stream)
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      {/* Header */}
-      <div className="bg-white p-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Scan your QR code</h1>
-        <p className="text-gray-600">Position the QR code within the frame</p>
-      </div>
-
-      {/* Camera View */}
-      <div className="flex-1 relative">
-        {cameraError ? (
-          <div className="flex-1 flex items-center justify-center bg-gray-900">
-            <Card className="w-full max-w-md mx-4">
-              <CardContent className="text-center py-8">
-                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <p className="text-lg font-semibold mb-2">Camera Not Available</p>
-                <p className="text-gray-600 mb-6">{cameraError}</p>
-
-                <div className="space-y-4">
-                  <Button
-                    onClick={startCamera}
-                    size="lg"
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700"
-                    disabled={isStartingCamera}
-                  >
-                    {isStartingCamera ? "Starting Camera..." : "Retry Camera Access"}
-                  </Button>
-
-                  <div>
-                    <label htmlFor="qr-upload" className="cursor-pointer">
-                      <Button asChild size="lg" className="w-full h-14">
-                        <span>
-                          <Upload className="mr-2 h-5 w-5" />
-                          Upload QR Image
-                        </span>
-                      </Button>
-                    </label>
-                    <input id="qr-upload" type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <input
-                      placeholder="Or enter QR code manually"
-                      value={manualToken}
-                      onChange={(e) => setManualToken(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
-                      onKeyPress={(e) => e.key === "Enter" && handleManualSubmit()}
-                    />
-                    <Button
-                      onClick={handleManualSubmit}
-                      variant="outline"
-                      size="lg"
-                      className="w-full bg-transparent"
-                      disabled={!manualToken.trim()}
-                    >
-                      Submit Code
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
+              <QrCode className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Event Check-in</h1>
+              <p className="text-sm text-gray-500">Kiosk Terminal</p>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Video Background */}
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted
-              className="w-full h-full object-cover bg-black" 
-              style={{ 
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 1,
-                backgroundColor: '#000000'
-              }}
-              onLoadStart={() => console.log("Video load started")}
-              onCanPlay={() => console.log("Video can play")}
-              onPlay={() => console.log("Video playing")}
-              onPause={() => console.log("Video paused")}
-              onError={(e) => console.error("Video element error:", e)}
-            />
-            
-            {/* Hidden canvas for QR detection */}
-            <canvas 
-              ref={canvasRef}
-              style={{ display: 'none' }}
-            />
-            
-            {/* QR Tracking Overlay - iOS style */}
-            {detectedQR && (
-              <div 
-                className="absolute inset-0 pointer-events-none"
-                style={{ zIndex: 2 }}
-              >
-                {/* Calculate QR position relative to video */}
-                {(() => {
-                  const video = videoRef.current
-                  if (!video) return null
-                  
-                  const videoRect = video.getBoundingClientRect()
-                  const scaleX = videoRect.width / video.videoWidth
-                  const scaleY = videoRect.height / video.videoHeight
-                  
-                  const qrLocation = detectedQR.location
-                  const topLeft = {
-                    x: qrLocation.topLeftCorner.x * scaleX,
-                    y: qrLocation.topLeftCorner.y * scaleY
-                  }
-                  const topRight = {
-                    x: qrLocation.topRightCorner.x * scaleX,
-                    y: qrLocation.topRightCorner.y * scaleY
-                  }
-                  const bottomLeft = {
-                    x: qrLocation.bottomLeftCorner.x * scaleX,
-                    y: qrLocation.bottomLeftCorner.y * scaleY
-                  }
-                  // const bottomRight = {
-                  //   x: qrLocation.bottomRightCorner.x * scaleX,
-                  //   y: qrLocation.bottomRightCorner.y * scaleY
-                  // }
-                  
-                  return (
-                    <div className="relative w-full h-full">
-                      {/* QR Code Highlight Box */}
-                      <div 
-                        className="absolute border-2 border-green-400 bg-green-400/20 rounded-lg animate-pulse"
-                        style={{
-                          left: topLeft.x,
-                          top: topLeft.y,
-                          width: Math.abs(topRight.x - topLeft.x),
-                          height: Math.abs(bottomLeft.y - topLeft.y),
-                          transform: `rotate(${Math.atan2(topRight.y - topLeft.y, topRight.x - topLeft.x) * 180 / Math.PI}deg)`
-                        }}
-                      >
-                        {/* Corner indicators */}
-                        <div className="absolute -top-1 -left-1 w-3 h-3 border-l-2 border-t-2 border-green-400 rounded-tl-lg"></div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 border-r-2 border-t-2 border-green-400 rounded-tr-lg"></div>
-                        <div className="absolute -bottom-1 -left-1 w-3 h-3 border-l-2 border-b-2 border-green-400 rounded-bl-lg"></div>
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 border-r-2 border-b-2 border-green-400 rounded-br-lg"></div>
-                      </div>
-                      
-                      {/* QR Code Data Display */}
-                      <div 
-                        className="absolute bg-black/80 text-white px-3 py-2 rounded-lg text-sm font-mono max-w-xs break-all"
-                        style={{
-                          left: topLeft.x,
-                          top: topLeft.y - 40,
-                          transform: 'translateX(-50%)'
-                        }}
-                      >
-                        📱 {detectedQR.data.substring(0, 30)}...
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-            
-            {/* Invalid QR Tracking Overlay */}
-            {invalidQR && (
-              <div 
-                className="absolute inset-0 pointer-events-none"
-                style={{ zIndex: 2 }}
-              >
-                {(() => {
-                  const video = videoRef.current
-                  if (!video) return null
-                  
-                  const videoRect = video.getBoundingClientRect()
-                  const scaleX = videoRect.width / video.videoWidth
-                  const scaleY = videoRect.height / video.videoHeight
-                  
-                  const qrLocation = invalidQR.location
-                  const topLeft = {
-                    x: qrLocation.topLeftCorner.x * scaleX,
-                    y: qrLocation.topLeftCorner.y * scaleY
-                  }
-                  const topRight = {
-                    x: qrLocation.topRightCorner.x * scaleX,
-                    y: qrLocation.topRightCorner.y * scaleY
-                  }
-                  const bottomLeft = {
-                    x: qrLocation.bottomLeftCorner.x * scaleX,
-                    y: qrLocation.bottomLeftCorner.y * scaleY
-                  }
-                  
-                  return (
-                    <div className="relative w-full h-full">
-                      {/* Invalid QR Code Highlight Box - Red */}
-                      <div 
-                        className="absolute border-2 border-red-400 bg-red-400/20 rounded-lg animate-pulse"
-                        style={{
-                          left: topLeft.x,
-                          top: topLeft.y,
-                          width: Math.abs(topRight.x - topLeft.x),
-                          height: Math.abs(bottomLeft.y - topLeft.y),
-                          transform: `rotate(${Math.atan2(topRight.y - topLeft.y, topRight.x - topLeft.x) * 180 / Math.PI}deg)`
-                        }}
-                      >
-                        {/* Corner indicators */}
-                        <div className="absolute -top-1 -left-1 w-3 h-3 border-l-2 border-t-2 border-red-400 rounded-tl-lg"></div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 border-r-2 border-t-2 border-red-400 rounded-tr-lg"></div>
-                        <div className="absolute -bottom-1 -left-1 w-3 h-3 border-l-2 border-b-2 border-red-400 rounded-bl-lg"></div>
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 border-r-2 border-b-2 border-red-400 rounded-br-lg"></div>
-                      </div>
-                      
-                      {/* Invalid QR Code Data Display */}
-                      <div 
-                        className="absolute bg-red-600/90 text-white px-3 py-2 rounded-lg text-sm font-mono max-w-xs break-all"
-                        style={{
-                          left: topLeft.x,
-                          top: topLeft.y - 40,
-                          transform: 'translateX(-50%)'
-                        }}
-                      >
-                        ❌ Invalid QR Code
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-            
-            {/* Clean overlay without opacity */}
-            <div 
-              className="absolute inset-0"
-              style={{ zIndex: 1 }}
-            >
-              {/* Simple cutout for scan area */}
-              <div 
-                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-transparent border-2 border-white/30 rounded-lg"
-                style={{
-                  boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.3)'
-                }}
-              ></div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-green-700">Online</span>
             </div>
-            {!stream && (
-              <div 
-                className="w-full h-full bg-gray-100 flex items-center justify-center"
-                style={{ 
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  zIndex: 1
-                }}
-              >
-                <div className="text-center text-gray-600">
-                  <div className="w-16 h-16 border-4 border-gray-300 border-dashed rounded-lg mx-auto mb-4 flex items-center justify-center">
-                    <div className="w-8 h-8 bg-gray-300 rounded"></div>
-                  </div>
-                  <p className="text-lg font-medium">Camera Loading...</p>
-                  <p className="text-sm text-gray-500 mt-2">Please allow camera access</p>
-                </div>
-              </div>
-            )}
-
-            {/* Clean Animated Scanner */}
-            <div 
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ zIndex: 3 }}
-            >
-              <div className="relative">
-                {/* Ultra clean scanning frame */}
-                <div className="w-72 h-72 relative">
-                  {/* Simple border */}
-                  <div className="absolute inset-0 border border-white/50 rounded-lg"></div>
-                  
-                  {/* Only scanning line when active */}
-                  {isScanning && (
-                  <div className="absolute inset-0 overflow-hidden rounded-lg">
-                      <div 
-                        className="absolute w-full h-px bg-white"
-                        style={{
-                          animation: 'scanLine 1.5s ease-in-out infinite',
-                          top: '50%',
-                          transform: 'translateY(-50%)'
-                        }}
-                      ></div>
-                    </div>
-                  )}
-                  </div>
-
-                {/* Instructions */}
-                <div className="text-center mt-6">
-                  <p className="text-white text-lg font-medium drop-shadow-lg mb-2">
-                    {detectedQR ? "✅ QR Code Detected!" : invalidQR ? "❌ Invalid QR Code" : isScanning ? "Scanning..." : "Position QR code within the frame"}
-                  </p>
-                  <p className="text-white text-sm opacity-80 drop-shadow-lg">
-                    {detectedQR ? "Processing..." : invalidQR ? "Please use a valid event QR code" : "Make sure the QR code is clear and well-lit"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Camera Status & Controls */}
-            <div 
-              className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-gray-800 p-3 rounded-lg text-xs border border-gray-200"
-              style={{ zIndex: 4 }}
-            >
-              <div className="flex items-center mb-2">
-                <Camera className="h-4 w-4 mr-2 text-blue-600" />
-                <span className="font-semibold">Camera Status</span>
-              </div>
-              <div className="space-y-1 mb-3">
-                <div className="flex items-center">
-                  <div className={`w-2 h-2 rounded-full mr-2 ${stream ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span>Status: {stream ? 'Active' : 'Inactive'}</span>
-                </div>
-                <div className="flex items-center">
-                  <div className={`w-2 h-2 rounded-full mr-2 ${videoRef.current?.paused === false ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span>Video: {videoRef.current?.paused === false ? 'Playing' : 'Stopped'}</span>
-                </div>
-                <div className="flex items-center">
-                  <div className={`w-2 h-2 rounded-full mr-2 ${isScanning ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                  <span>Scanning: {isScanning ? 'Active' : 'Inactive'}</span>
-                </div>
-                <div className="flex items-center">
-                  <div className={`w-2 h-2 rounded-full mr-2 ${detectedQR ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                  <span>QR: {detectedQR ? 'Detected' : 'None'}</span>
-                </div>
-              </div>
-              
-              {/* Start/Stop Scanning Controls */}
-              <div className="flex gap-2">
-                {!isScanning ? (
-                  <Button
-                    onClick={handleStartScanning}
-                    size="sm"
-                    className="h-8 px-3 bg-green-600 hover:bg-green-700 text-white"
-                    disabled={!stream}
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    Start Scan
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleStopScanning}
-                    size="sm"
-                    className="h-8 px-3 bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    <Square className="h-3 w-3 mr-1" />
-                    Stop Scan
-                  </Button>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Bottom Controls */}
-      <div className="bg-white p-4 space-y-4">
-        <div className="flex gap-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="lg" className="flex-1 h-14 bg-transparent">
-                <HelpCircle className="mr-2 h-5 w-5" />
-                Need Help?
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="h-[300px]">
-              <SheetHeader>
-                <SheetTitle>QR Code Help</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-2">Can't find your QR code?</h3>
-                  <p className="text-blue-800">Check your email invitation or contact event staff.</p>
-                </div>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-yellow-900 mb-2">QR code not scanning?</h3>
-                  <p className="text-yellow-800">Make sure the code is well-lit and not damaged.</p>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          <Button onClick={() => navigate(`/kiosk`)} variant="outline" size="lg" className="h-14">
-            Back
-          </Button>
+          </div>
         </div>
+      </header>
 
-        <p className="text-center text-sm text-gray-500">Your data is only used to verify your invitation</p>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-6xl">
+          {/* Welcome section - centered */}
+          <div className="text-center space-y-4 mb-8">
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
+              <QrCode className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome to the Event</h2>
+              <p className="text-gray-600">
+                Please scan your QR code below to check in. If you need assistance,
+                <br />
+                our staff is here to help.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-6 items-center">
+            {/* Left side - Main scanner area */}
+            <div className="flex-1 space-y-6">
+
+              {/* Scanner card */}
+              <Card className="overflow-hidden shadow-lg">
+                <CardContent className="p-0">
+                  {/* Black scanner area */}
+                  <div className="bg-black relative" style={{ height: "500px" }}>
+                    {/* Scanning indicator */}
+                    {isScanning && (
+                      <div className="absolute top-4 left-4 z-10 flex items-center gap-2 text-green-400 text-sm font-medium">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                        Scanning...
+                      </div>
+                    )}
+
+                    {/* Video element */}
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+
+                    {/* Hidden canvas */}
+                    <canvas ref={canvasRef} style={{ display: "none" }} />
+                    
+                    {/* QR tracking overlay canvas */}
+                    <canvas
+                      ref={overlayCanvasRef}
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      style={{ zIndex: 2 }}
+                    />
+
+                    {/* Scanner frame overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="relative w-80 h-80">
+                        {/* Blue rounded frame */}
+                        <div className="absolute inset-0 border-4 border-blue-500 rounded-3xl" />
+
+                        {/* Center content */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                          <QrCode className="w-12 h-12 mb-3 opacity-50" />
+                          <p className="text-sm font-medium opacity-75">Position QR code here</p>
+                        </div>
+
+                        {/* Success/Error overlay */}
+                        {detectedQR && (
+                          <div className="absolute inset-0 bg-green-500/20 border-4 border-green-400 rounded-3xl flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <QrCode className="w-8 h-8 text-white" />
+                              </div>
+                              <p className="text-green-400 font-bold">QR Code Detected!</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {invalidQR && (
+                          <div className="absolute inset-0 bg-red-500/20 border-4 border-red-400 rounded-3xl flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <AlertCircle className="w-8 h-8 text-white" />
+                              </div>
+                              <p className="text-red-400 font-bold">Invalid QR Code</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Camera error state */}
+                    {cameraError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black">
+                        <div className="text-center text-white">
+                          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                          <p className="text-xl font-bold mb-2">Camera Not Available</p>
+                          <p className="text-gray-400">{cameraError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Loading state */}
+                    {!stream && !cameraError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black">
+                        <div className="text-center text-white">
+                          <div className="w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+                          <p className="text-xl font-bold mb-2">Initializing Camera</p>
+                          <p className="text-gray-400">Please allow camera access when prompted</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom instruction card */}
+                  <div className="bg-white p-6 text-center space-y-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Scan Your QR Code</h3>
+                      <p className="text-gray-600">
+                        Hold your QR code steady within the scanning area above. The system will
+                        <br />
+                        automatically detect and process your invitation.
+                      </p>
+                    </div>
+                    <button className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium">
+                      <HelpCircle className="w-5 h-5" />
+                      Need help? Contact staff
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="w-80 space-y-6">
+              {/* Scanning Metrics Card */}
+              <Card className="shadow-lg">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <QrCode className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-900">Scanning Metrics</h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Scans Today:</span>
+                      <span className="text-sm font-medium text-gray-900">{scanMetrics.totalScans}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Success Rate:</span>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${scanMetrics.successfulScans / Math.max(scanMetrics.totalScans, 1) > 0.9 ? "bg-green-500" : "bg-yellow-500"}`} />
+                        <span className="text-sm font-medium text-gray-900">
+                          {scanMetrics.totalScans > 0 ? Math.round((scanMetrics.successfulScans / scanMetrics.totalScans) * 100) : 0}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Avg Time:</span>
+                      <span className="text-sm font-medium text-gray-900">{scanMetrics.avgScanTime.toFixed(1)}s</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Last Scan:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {scanMetrics.lastScanTime > 0 ? `${scanMetrics.lastScanTime.toFixed(1)}s ago` : "None"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Status:</span>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isScanning ? "bg-green-500" : "bg-gray-400"}`} />
+                        <span className="text-sm font-medium text-gray-900">{isScanning ? "Scanning" : "Ready"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleStopScanning}
+                      disabled={!isScanning}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      <Square className="w-4 h-4 mr-2" />
+                      Stop Scan
+                    </Button>
+                    
+                    {!isScanning && (
+                      <Button
+                        onClick={() => {
+                          scanningRef.current = true
+                          setIsScanning(true)
+                          startQRScanning()
+                        }}
+                        disabled={!stream}
+                        className="w-full bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        <QrCode className="w-4 h-4 mr-2" />
+                        Start Scan
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Time Cards */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="shadow-lg">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-lg font-bold text-blue-600 mb-1">
+                      {currentTime.toLocaleTimeString('en-AU', { 
+                        timeZone: 'Australia/Brisbane',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-600">Brisbane Time</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-lg">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-lg font-bold text-green-600 mb-1">
+                      {currentTime.toLocaleDateString('en-AU', { 
+                        timeZone: 'Australia/Brisbane',
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short'
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-600">Event Date</div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
