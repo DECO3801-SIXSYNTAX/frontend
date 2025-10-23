@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+:root {
+  --primary-50: #eef2ff;
+  --primary-100: #e0e7ff;
+  --primary-500: #6366f1;
+  --primary-600: #4f46e5;
+  --primary-700: #4338ca;
+  --base-font-size: 16px;
+}
+
+/* Dark mode background and text colors */
+.dark {
+  background-color: #111827;
+  color: #fff;
+}
+
+.dark body {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+/* Dark mode component styles */
+.dark .bg-white {
+  background-color: #1f2937 !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+.dark .text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+
+.dark .border-gray-300 {
+  border-color: #4b5563 !important;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #4b5563 !important;
+}
+
+.dark .hover\:border-gray-300:hover {
+  border-color: #6b7280 !important;
+}
+
+/* Apply base font size */
+html {
+  font-size: var(--base-font-size);
+}
+
+/* Primary color overrides */
+.bg-primary-50 {
+  background-color: var(--primary-50) !important;
+}
+
+.bg-primary-600 {
+  background-color: var(--primary-600) !important;
+}
+
+.text-primary-600 {
+  color: var(--primary-600) !important;
+}
+
+.border-primary-200 {
+  border-color: var(--primary-100) !important;
+}
+
+.border-primary-500 {
+  border-color: var(--primary-500) !important;
+}
+
+.hover\:text-primary-600:hover {
+  color: var(--primary-600) !important;
+}
+
+.focus\:ring-primary-500:focus {
+  box-shadow: 0 0 0 3px var(--primary-100) !important;
+}
+
+.focus\:border-primary-500:focus {
+  border-color: var(--primary-500) !important;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Reduced motion */
+.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* High contrast mode */
+.high-contrast {
+  --primary-500: #000;
+  --primary-600: #000;
+}
+
+.high-contrast.dark {
+  --primary-500: #fff;
+  --primary-600: #fff;
+}
+
+/* Compact mode */
+.compact-mode {
+  --spacing-scale: 0.75;
+}
+
+.compact-mode [class*="p-4"] {
+  padding: 0.75rem !important;
+}
+
+.compact-mode [class*="p-6"] {
+  padding: 1rem !important;
+}
+
+.compact-mode [class*="py-6"] {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+.compact-mode [class*="space-y-6"] > * + * {
+  margin-top: 1rem !important;
+}
+
+/* Input styles */
+.input { 
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px #2563eb;
+}
+
+.dark .input {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f3f4f6;
+}
