@@ -286,22 +286,19 @@ export class DashboardService {
         throw new Error('Event ID is required for importing guests');
       }
 
-      // Get Django JWT token from localStorage (set during Google sign-in)
-      const djangoToken = localStorage.getItem('access_token');
-      console.log('DEBUG: Django JWT token:', djangoToken ? 'YES (length: ' + djangoToken.length + ')' : 'NO');
-
-      if (!djangoToken) {
+      // ✅ Get Firebase ID token instead of Django JWT
+      const user = auth.currentUser;
+      if (!user) {
         throw new Error('Authentication required. Please sign in with Google to import guests.');
       }
 
-      console.log('DEBUG: Using Django JWT token (length: ' + djangoToken.length + ')');
-      console.log('DEBUG: Token preview:', djangoToken.substring(0, 50) + '...');
+      const firebaseToken = await user.getIdToken();
+      console.log('DEBUG: Using Firebase ID token (length: ' + firebaseToken.length + ')');
 
       // Create FormData to send CSV file
       const formData = new FormData();
-      formData.append('file', csvFile); // Backend expects 'file' field name
+      formData.append('file', csvFile);
 
-      // Call backend API using axios with FormData
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
       console.log('Sending import CSV file to Django backend:', {
@@ -317,19 +314,14 @@ export class DashboardService {
         formData,
         {
           headers: {
-            'Authorization': `Bearer ${djangoToken}`,
+            'Authorization': `Bearer ${firebaseToken}`, // ✅ Use Firebase token
             'Content-Type': 'multipart/form-data'
           },
-          timeout: 30000 // 30 second timeout
+          timeout: 30000
         }
       );
 
-      console.log('✓ Django backend import CSV successful:', {
-        status: response.status,
-        hasData: !!response.data,
-        dataKeys: response.data ? Object.keys(response.data) : [],
-        responseData: response.data
-      });
+      console.log('✓ Django backend import CSV successful:', response.data);
 
       // Log activity
       const importedCount = response.data.imported || 0;
@@ -342,18 +334,10 @@ export class DashboardService {
         type: 'guest'
       });
 
-      // Return the backend response (contains imported and skipped counts)
       return response.data;
     } catch (error: any) {
-      console.error('✗ Django backend import CSV error:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        responseData: error.response?.data,
-        url: error.config?.url
-      });
+      console.error('✗ Django backend import CSV error:', error);
 
-      // Provide better error messages
       if (error.response?.status === 401) {
         throw new Error('Authentication failed. Please sign in again.');
       } else if (error.response?.status === 403) {
