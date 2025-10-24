@@ -19,13 +19,8 @@ export interface Guest {
   name: string;
   email: string;
   phone: string;
-  status: 'confirmed' | 'pending' | 'declined';
-  rsvpDate?: string;
   dietaryNeeds?: string;
   accessibility?: string;
-  plusOne: boolean;
-  plusOneName?: string;
-  table?: string;
   seat?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -207,36 +202,27 @@ export class GuestService {
     }
   }
 
-  // Update guest RSVP status
-  async updateRSVPStatus(eventId: string, guestId: string, status: 'confirmed' | 'pending' | 'declined'): Promise<void> {
-    await this.updateGuest(eventId, guestId, {
-      status,
-      rsvpDate: new Date().toISOString()
-    });
-  }
-
-  // Assign table to guest
-  async assignTable(eventId: string, guestId: string, table: string): Promise<void> {
-    await this.updateGuest(eventId, guestId, { table: table, seat: table });
+  // Assign seat to guest
+  async assignSeat(eventId: string, guestId: string, seat: string): Promise<void> {
+    await this.updateGuest(eventId, guestId, { seat: seat });
   }
 
   // Get guest statistics
   async getGuestStats(eventId: string): Promise<{
     total: number;
-    confirmed: number;
-    pending: number;
-    declined: number;
-    withPlusOne: number;
+    specialNeeds: number;
+    assignedSeats: number;
   }> {
     try {
       const guests = await this.getGuestsByEvent(eventId);
       
       return {
         total: guests.length,
-        confirmed: guests.filter(g => g.status === 'confirmed').length,
-        pending: guests.filter(g => g.status === 'pending').length,
-        declined: guests.filter(g => g.status === 'declined').length,
-        withPlusOne: guests.filter(g => g.plusOne).length
+        specialNeeds: guests.filter(g => 
+          (g.dietaryNeeds && g.dietaryNeeds.toLowerCase() !== 'none' && g.dietaryNeeds.trim() !== '') ||
+          (g.accessibility && g.accessibility.toLowerCase() !== 'none' && g.accessibility.trim() !== '')
+        ).length,
+        assignedSeats: guests.filter(g => g.seat).length
       };
     } catch (error) {
       console.error('✗ Error fetching guest stats:', error);

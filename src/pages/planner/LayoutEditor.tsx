@@ -363,7 +363,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
           accessibilityNeeds: fbGuest.accessibility 
             ? fbGuest.accessibility.split(',').map(s => s.trim()).filter(Boolean)
             : [],
-          tableId: fbGuest.table || undefined,
+          tableId: fbGuest.seat || undefined,
           seatNumber: undefined
         }));
 
@@ -438,7 +438,7 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
         role: 'Guest' as Guest['role'], // Default role since Firebase guests don't have this
         dietaryRestrictions: fbGuest.dietaryNeeds ? [fbGuest.dietaryNeeds] : [],
         accessibilityNeeds: fbGuest.accessibility ? [fbGuest.accessibility] : [],
-        tableId: fbGuest.table || undefined, // Use the table field from Firebase
+        tableId: fbGuest.seat || undefined, // Use the seat field from Firebase
         seatNumber: undefined
       }));
 
@@ -993,9 +993,9 @@ const LayoutEditor: React.FC<LayoutEditorProps> = () => {
       const element = layoutElements.find(el => el.id === elementId);
       const tableName = element?.name || `Table ${elementId.slice(0, 8)}`;
 
-      // Update guest's table in Firestore
-      await guestService.assignTable(eventId, guestId, tableName);
-      console.log(`✓ Assigned guest ${guestId} to table ${tableName} in Firestore`);
+      // Update guest's seat in Firestore
+      await guestService.assignSeat(eventId, guestId, tableName);
+      console.log(`✓ Assigned guest ${guestId} to seat ${tableName} in Firestore`);
 
       // Update local state - guest table
       setGuests(prevGuests =>

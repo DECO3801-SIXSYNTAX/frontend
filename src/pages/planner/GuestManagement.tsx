@@ -4,19 +4,19 @@ import {
   Users,
   Plus,
   Search,
-  Filter,
   Download,
   Upload,
   Mail,
   Phone,
   MapPin,
   Calendar,
-  Check,
   X,
   MoreVertical,
   Edit,
   Trash2,
-  UserPlus
+  UserPlus,
+  Utensils,
+  Armchair
 } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { GuestService, Guest } from '../../services/GuestService';
@@ -25,7 +25,6 @@ import ImportGuestsModal from '../../components/modals/ImportGuestsModal';
 const GuestManagement: React.FC = () => {
   const { events } = useDashboard();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -37,12 +36,9 @@ const GuestManagement: React.FC = () => {
     name: '',
     email: '',
     phone: '',
-    status: 'pending' as 'pending' | 'confirmed' | 'declined',
     dietaryNeeds: '',
     accessibility: '',
-    plusOne: false,
-    plusOneName: '',
-    table: ''
+    seat: ''
   });
 
   const guestService = new GuestService();
@@ -57,7 +53,7 @@ const GuestManagement: React.FC = () => {
       setSelectedEventId(events[0].id);
       localStorage.setItem('selectedEventId', events[0].id);
     }
-  }, [events, selectedEventId]);
+  }, [events]);
 
   // Load guests when event is selected
   useEffect(() => {
@@ -110,12 +106,9 @@ const GuestManagement: React.FC = () => {
         name: '',
         email: '',
         phone: '',
-        status: 'pending',
         dietaryNeeds: '',
         accessibility: '',
-        plusOne: false,
-        plusOneName: '',
-        table: ''
+        seat: ''
       });
       
       // Close modal
@@ -165,18 +158,6 @@ const GuestManagement: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (guestId: string, status: 'confirmed' | 'pending' | 'declined') => {
-    if (!selectedEventId) return;
-    
-    try {
-      await guestService.updateRSVPStatus(selectedEventId, guestId, status);
-      await loadGuests();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Failed to update status. Please try again.');
-    }
-  };
-
   const handleExportGuests = () => {
     if (guests.length === 0) {
       alert('No guests to export');
@@ -184,18 +165,16 @@ const GuestManagement: React.FC = () => {
     }
 
     // Create CSV content
-    const headers = ['Name', 'Email', 'Phone', 'Status', 'Dietary Needs', 'Accessibility', 'Plus One', 'Table'];
+    const headers = ['Name', 'Email', 'Phone', 'Dietary Needs', 'Accessibility', 'Seat'];
     const csvContent = [
       headers.join(','),
       ...guests.map(guest => [
         `"${guest.name}"`,
         `"${guest.email}"`,
         `"${guest.phone || ''}"`,
-        guest.status,
         `"${guest.dietaryNeeds || ''}"`,
         `"${guest.accessibility || ''}"`,
-        guest.plusOne ? 'Yes' : 'No',
-        `"${guest.table || ''}"`
+        `"${guest.seat || ''}"`
       ].join(','))
     ].join('\n');
 
@@ -211,35 +190,19 @@ const GuestManagement: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-700';
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'declined': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'confirmed': return <Check className="h-4 w-4" />;
-      case 'declined': return <X className="h-4 w-4" />;
-      default: return <Calendar className="h-4 w-4" />;
-    }
-  };
-
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          guest.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || guest.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const stats = {
     total: guests.length,
-    confirmed: guests.filter(g => g.status === 'confirmed').length,
-    pending: guests.filter(g => g.status === 'pending').length,
-    declined: guests.filter(g => g.status === 'declined').length
+    specialNeeds: guests.filter(g => 
+      (g.dietaryNeeds && g.dietaryNeeds.toLowerCase() !== 'none' && g.dietaryNeeds.trim() !== '') ||
+      (g.accessibility && g.accessibility.toLowerCase() !== 'none' && g.accessibility.trim() !== '')
+    ).length,
+    assignedSeats: guests.filter(g => g.seat).length
   };
 
   return (
@@ -303,7 +266,7 @@ const GuestManagement: React.FC = () => {
         ) : (
           <>
             {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -328,11 +291,11 @@ const GuestManagement: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Confirmed</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+                <p className="text-sm text-gray-600">Special Needs</p>
+                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.specialNeeds}</p>
               </div>
-              <div className="bg-green-100 p-3 rounded-lg">
-                <Check className="h-6 w-6 text-green-600" />
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <Utensils className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </motion.div>
@@ -345,28 +308,11 @@ const GuestManagement: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+                <p className="text-sm text-gray-600">Assigned Seats</p>
+                <p className="text-3xl font-bold text-green-600 mt-1">{stats.assignedSeats}</p>
               </div>
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <Calendar className="h-6 w-6 text-yellow-600" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Declined</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{stats.declined}</p>
-              </div>
-              <div className="bg-red-100 p-3 rounded-lg">
-                <X className="h-6 w-6 text-red-600" />
+              <div className="bg-green-100 p-3 rounded-lg">
+                <Armchair className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </motion.div>
@@ -385,21 +331,6 @@ const GuestManagement: React.FC = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
-                <option value="declined">Declined</option>
-              </select>
             </div>
 
             {/* Action Buttons */}
@@ -436,8 +367,8 @@ const GuestManagement: React.FC = () => {
               <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No guests found</h3>
               <p className="text-gray-500 mb-4">
-                {searchTerm || statusFilter !== 'all'
-                  ? 'Try adjusting your search or filter criteria'
+                {searchTerm
+                  ? 'Try adjusting your search criteria'
                   : 'Start by adding your first guest'}
               </p>
               <button
@@ -460,13 +391,10 @@ const GuestManagement: React.FC = () => {
                     Contact
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Special Needs
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Table
+                    Seat
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -491,9 +419,6 @@ const GuestManagement: React.FC = () => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{guest.name}</div>
-                          {guest.plusOne && (
-                            <div className="text-xs text-gray-500">+1 Guest</div>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -506,17 +431,6 @@ const GuestManagement: React.FC = () => {
                         <Phone className="h-4 w-4 mr-2 text-gray-400" />
                         {guest.phone}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(guest.status)}`}>
-                        {getStatusIcon(guest.status)}
-                        <span className="ml-1">{guest.status}</span>
-                      </span>
-                      {guest.rsvpDate && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          RSVP: {new Date(guest.rsvpDate).toLocaleDateString()}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
@@ -533,9 +447,9 @@ const GuestManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {guest.table ? (
+                      {guest.seat ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
-                          {guest.table}
+                          {guest.seat}
                         </span>
                       ) : (
                         <span className="text-gray-400 text-sm">Not assigned</span>
@@ -640,22 +554,6 @@ const GuestManagement: React.FC = () => {
                       />
                     </div>
 
-                    {/* Status */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        RSVP Status
-                      </label>
-                      <select
-                        value={newGuest.status}
-                        onChange={(e) => setNewGuest({ ...newGuest, status: e.target.value as any })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="declined">Declined</option>
-                      </select>
-                    </div>
-
                     {/* Dietary Needs */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -683,36 +581,6 @@ const GuestManagement: React.FC = () => {
                         placeholder="Wheelchair access, etc."
                       />
                     </div>
-
-                    {/* Plus One */}
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="plusOne"
-                        checked={newGuest.plusOne}
-                        onChange={(e) => setNewGuest({ ...newGuest, plusOne: e.target.checked })}
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="plusOne" className="ml-2 block text-sm text-gray-900">
-                        Bringing a +1
-                      </label>
-                    </div>
-
-                    {/* Plus One Name */}
-                    {newGuest.plusOne && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Plus One Name
-                        </label>
-                        <input
-                          type="text"
-                          value={newGuest.plusOneName}
-                          onChange={(e) => setNewGuest({ ...newGuest, plusOneName: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="Guest name"
-                        />
-                      </div>
-                    )}
 
                     {/* Table Assignment */}
                     {/* Table Assignment input removed as requested */}
@@ -811,22 +679,6 @@ const GuestManagement: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* RSVP Status */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        RSVP Status
-                      </label>
-                      <select
-                        value={editingGuest.status}
-                        onChange={(e) => setEditingGuest({ ...editingGuest, status: e.target.value as 'pending' | 'confirmed' | 'declined' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="declined">Declined</option>
-                      </select>
-                    </div>
-
                     {/* Dietary Needs & Accessibility */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -855,39 +707,17 @@ const GuestManagement: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Plus One */}
-                    <div>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={editingGuest.plusOne}
-                          onChange={(e) => setEditingGuest({ ...editingGuest, plusOne: e.target.checked })}
-                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Bringing a plus one</span>
-                      </label>
-                      {editingGuest.plusOne && (
-                        <input
-                          type="text"
-                          value={editingGuest.plusOneName || ''}
-                          onChange={(e) => setEditingGuest({ ...editingGuest, plusOneName: e.target.value })}
-                          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="Plus one name"
-                        />
-                      )}
-                    </div>
-
-                    {/* Table Assignment */}
+                    {/* Seat Assignment */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Table Assignment
+                        Seat Assignment
                       </label>
                       <input
                         type="text"
-                        value={editingGuest.table || ''}
-                        onChange={(e) => setEditingGuest({ ...editingGuest, table: e.target.value })}
+                        value={editingGuest.seat || ''}
+                        onChange={(e) => setEditingGuest({ ...editingGuest, seat: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        placeholder="Table number or name"
+                        placeholder="Seat number or name"
                       />
                     </div>
                   </div>
