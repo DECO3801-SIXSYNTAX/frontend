@@ -290,12 +290,6 @@ export class DashboardService {
       const djangoToken = localStorage.getItem('access_token');
       console.log('DEBUG: Django JWT token:', djangoToken ? 'YES (length: ' + djangoToken.length + ')' : 'NO');
 
-      if (!djangoToken) {
-        throw new Error('Authentication required. Please sign in with Google to import guests.');
-      }
-
-      console.log('DEBUG: Using Django JWT token (length: ' + djangoToken.length + ')');
-      console.log('DEBUG: Token preview:', djangoToken.substring(0, 50) + '...');
 
       // Create FormData to send CSV file
       const formData = new FormData();
@@ -317,7 +311,6 @@ export class DashboardService {
         formData,
         {
           headers: {
-            'Authorization': `Bearer ${djangoToken}`,
             'Content-Type': 'multipart/form-data'
           },
           timeout: 30000 // 30 second timeout
