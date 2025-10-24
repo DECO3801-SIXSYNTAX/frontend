@@ -1,8 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { AuthService, User } from "../services/AuthService";
-import Input from "../components/Input";
-import Button from "../components/Button";
-import GoogleButton from "../components/GoogleButton";
+import { useNavigate } from "react-router-dom";
+import { AuthService } from "@/lib/services/AuthService";
+
+// Type definition (duplicated to avoid circular dependency)
+interface User {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin' | 'planner' | 'vendor';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
+import Input from "@/components/ui/Input";
+import DefaultButton from "../../components/ui/button";
+import GoogleButton from "../../components/ui/GoogleButton";
 import SignUp from "./SignUp";
 import { Mail, Lock, Calendar, CheckCircle, XCircle, X, Eye, EyeOff } from "lucide-react";
 import type { Variants, Transition } from "framer-motion";
@@ -11,8 +25,7 @@ import type { CSSProperties } from "react";
 // 🎬 Framer Motion untuk opening/ending animation
 import { motion, AnimatePresence } from "framer-motion";
 
-import { apiLogin, apiUpdateUser } from "../api/auth";
-import { useDashboard } from "../contexts/DashboardContext";
+import { apiLogin, apiUpdateUser } from "@/lib/api/auth";
 
 const authService = new AuthService();
 
@@ -79,12 +92,30 @@ const haloVariants: Variants = {
 };
 
 export default function SignIn() {
-  const { setCurrentPage, setCurrentUser } = useDashboard();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | "loading">("error");
+
+  // Function to redirect based on user role
+  const redirectBasedOnRole = (user: User) => {
+    switch (user.role) {
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'planner':
+        navigate('/planner/dashboard'); // We'll create this route
+        break;
+      case 'vendor':
+        navigate('/vendor');
+        break;
+      default:
+        navigate('/');
+        break;
+    }
+  };
   const [showPopup, setShowPopup] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
 
@@ -115,30 +146,21 @@ export default function SignIn() {
     showMessage("Signing you in...", "loading");
 
     try {
-      // For now, use mock authentication to work with the dashboard
-      // TODO: Replace with real authentication when backend is ready
-      if (email && password) {
-        const mockUser = {
-          id: 'mock-user-' + Date.now(),
-          email: email,
-          name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-          role: 'planner' as const,
-          password: password
-        };
+      // Use real authentication with Django backend
+      const user = await authService.signIn({ email, password });
 
-        // ✅ Berhasil → tampilin success + trigger ending animation
-        showMessage(`Welcome back, ${mockUser.name}! Sign in successful.`, "success");
+      // ✅ Berhasil → tampilin success + trigger ending animation
+      showMessage(`Welcome back, ${user.name}! Sign in successful.`, "success");
 
-        // Set current user in context
-        setCurrentUser(mockUser);
+      // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
+      setTimeout(() => setExiting(true), 500);
 
-        // 🎬 Ending: delay dikit biar popup kebaca, lalu animate keluar
-        setTimeout(() => setExiting(true), 500);
-
-        // Navigate to dashboard after animation
-        setTimeout(() => setCurrentPage('dashboard'), 900);
-        return;
-      }
+      // Navigate to dashboard after animation
+      setTimeout(() => {
+        // Store user data and redirect based on role
+        localStorage.setItem('user', JSON.stringify(user));
+        redirectBasedOnRole(user);
+      }, 900);
     } catch (err: any) {
       let errorMessage = "An error occurred. Please try again.";
 
@@ -368,12 +390,12 @@ export default function SignIn() {
                         />
 
                         <div className="flex gap-3 pt-4">
-                          <Button
+                          <DefaultButton
                             onClick={() => setShowForgotPassword(false)}
                             label="Cancel"
                             className="flex-1 bg-gray-500 hover:bg-gray-600"
                           />
-                          <Button
+                          <DefaultButton
                             onClick={handleForgotPassword}
                             label="Send Reset Link"
                             className="flex-1 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600"
@@ -456,7 +478,7 @@ export default function SignIn() {
                     </button>
                   </div>
 
-                  <Button
+                  <DefaultButton
                     type="submit"
                     label={messageType === "loading" ? "Signing In..." : "Sign In"}
                     className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 disabled:opacity-70"
@@ -474,12 +496,13 @@ export default function SignIn() {
                       .replace(/\b\w/g, (l: string) => l.toUpperCase());
                     showMessage(`Welcome ${userName}! Google sign in successful.`, "success");
 
-                    // Set user data from Google authentication
-                    setCurrentUser(user);
-
                     // 🎬 Ending setelah Google success (opsional)
                     setTimeout(() => setExiting(true), 350);
-                    setTimeout(() => setCurrentPage('dashboard'), 800);
+                    setTimeout(() => {
+                      // Store user data and redirect based on role
+                      localStorage.setItem('user', JSON.stringify(user));
+                      redirectBasedOnRole(user);
+                    }, 800);
                   }}
                   onError={(error) => showMessage(`Google sign in failed: ${error}`, "error")}
                 />

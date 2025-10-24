@@ -1,8 +1,20 @@
 import React, { useState } from "react";
-import { AuthService, SignUpPayload } from "../services/AuthService";
-import Input from "../components/Input";
+import { AuthService } from "@/lib/services/AuthService";
 
-import Button from "../components/Button";
+// Type definition (duplicated to avoid circular dependency)
+interface SignUpPayload {
+  email: string;
+  password: string;
+  name: string;
+  role: 'admin' | 'planner' | 'vendor';
+  company?: string;
+  phone?: string;
+  experience?: string;
+  specialty?: string;
+}
+import Input from "@/components/ui/Input";
+
+import DefaultButton from "@/components/ui/button";
 import {
   Mail,
   Lock,
@@ -352,7 +364,7 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                 }`}
               >
-                <Briefcase size={20} className="mx-auto mb-1" />
+                <Calendar size={20} className="mx-auto mb-1" />
                 Event Planner
               </button>
               <button
@@ -438,7 +450,7 @@ className="pointer-events-none absolute -top-12 -right-20 h-52 w-52"
             </div>
           )}
 
-          <Button
+          <DefaultButton
             onClick={handleSubmit}
             label={
               messageType === "loading" ? "Creating Account..." : "Create Account"

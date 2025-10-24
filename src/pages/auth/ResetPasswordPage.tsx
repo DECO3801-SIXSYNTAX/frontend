@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import Input from "../components/Input";
-import Button from "../components/Button";
+import Input from "@/components/ui/Input";
+import DefaultButton from "@/components/ui/button";
 import { Lock, Calendar, CheckCircle, XCircle, X, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 import type { CSSProperties } from "react";
 
-const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 // Animation variants matching SignIn component
 const easeOutBack: NonNullable<Transition["ease"]> = [0.16, 1, 0.3, 1];
@@ -335,7 +335,7 @@ export default function ResetPasswordPage() {
             </button>
           </div>
 
-          <Button
+          <DefaultButton
             type="submit"
             label={isSubmitting ? "Resetting Password..." : "Reset Password"}
             className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 disabled:opacity-70"

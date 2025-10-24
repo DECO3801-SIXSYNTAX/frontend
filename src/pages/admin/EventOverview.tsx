@@ -1,70 +1,27 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import type { EventItem } from "@/types";
-import { api } from "@/lib/api";
+import React from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 export default function EventOverview() {
-  const { id } = useParams<{ id: string }>();
-  const [ev, setEv] = useState<EventItem | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    api.getEvent(id).then(setEv).catch(e=>setError(String(e)));
-  }, [id]);
-
-  if (error) return <div className="text-red-600">{error}</div>;
-  if (!ev) return <div>Loading…</div>;
+  const navigate = useNavigate();
+  const { id } = useParams();
 
   return (
-    <div className="mx-auto max-w-[1000px] space-y-6">
-      <Link to="/admin/events" className="text-sm text-blue-700">&larr; Back to Events</Link>
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{ev.name}</h1>
-          <div className="text-sm text-slate-500">{new Date(ev.date).toDateString()} • {ev.venue}</div>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Event Overview</h1>
+          <button
+            onClick={() => navigate('/admin/events')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Back to Events
+          </button>
         </div>
-        <Badge>{ev.status}</Badge>
-      </header>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Metric label="Guests" value="1,950" />
-        <Metric label="Assigned Seats" value="1,847" />
-        <Metric label="Dietary Needs" value="234" />
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-gray-600">Event overview for ID: {id} - Coming soon!</p>
+        </div>
       </div>
-
-      <section className="rounded-2xl bg-white p-4 shadow">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Teams</h2>
-          <div className="flex gap-2">
-            <Button variant="secondary">Assign Planner</Button>
-            <Button variant="secondary">Assign Vendor</Button>
-          </div>
-        </div>
-        <ul className="text-sm text-slate-700 list-disc pl-5">
-          <li>Planner Team A</li>
-          <li>Vendor: Catering Co.</li>
-        </ul>
-      </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow">
-        <h2 className="mb-2 font-semibold">Compliance</h2>
-        <ul className="text-sm list-disc pl-5">
-          <li>Privacy statement attached</li>
-          <li>Accessibility checklist completed</li>
-        </ul>
-      </section>
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="text-xl font-semibold">{value}</div>
     </div>
   );
 }
