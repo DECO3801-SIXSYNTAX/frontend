@@ -20,6 +20,7 @@
     "firebase": "^12.4.0",
     "framer-motion": "^11.11.17",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.3",
     "jsqr": "^1.4.0",
     "konva": "^10.0.2",

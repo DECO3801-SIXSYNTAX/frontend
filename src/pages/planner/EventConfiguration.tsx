@@ -316,31 +316,40 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
     pdf.save(`${event.name.replace(/\s+/g, '-')}-all-qr-codes.pdf`);
   };
 
-  const handleBulkSendInvites = async () => {
-    if (!event) return;
+const handleBulkSendInvites = async () => {
+  if (!event) return;
 
-    setIsSendingInvites(true);
-    setSendInviteResult(null);
+  setIsSendingInvites(true);
+  setSendInviteResult(null);
 
-    try {
-      const baseUrl = window.location.origin;
-      const token = localStorage.getItem('access_token');
-      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  try {
+    const baseUrl = window.location.origin;
+    
+    // Get Firebase ID token (not JWT!)
+    const { auth } = await import('@/config/firebase');
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('No authenticated user');
+    }
+    
+    const idToken = await user.getIdToken();  // ← Get Firebase token
+    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-      const response = await fetch(`${API_URL}api/guests/bulk-send-invites/${encodeURIComponent(eventId)}/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ baseUrl })
-      });
+    const response = await fetch(`${API_URL}/api/guests/bulk-send-invites/${encodeURIComponent(eventId)}/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,  // ← Send Firebase token
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ baseUrl })
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to send invites: ${response.statusText}`);
-      }
+    if (!response.ok) {
+      throw new Error(`Failed to send invites: ${response.statusText}`);
+    }
 
-      const result = await response.json();
+    const result = await response.json();
 
       console.log('Bulk send invite result:', result);
 
@@ -382,13 +391,22 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
 
     try {
       const baseUrl = window.location.origin;
-      const token = localStorage.getItem('access_token');
+      
+      // ✅ GET FIREBASE TOKEN (not localStorage)
+      const { auth } = await import('@/config/firebase');
+      const user = auth.currentUser;
+      
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+      
+      const idToken = await user.getIdToken();
       const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-      const response = await fetch(`${API_URL}api/guests/bulk-send-invites/${encodeURIComponent(eventId)}/`, {
+      const response = await fetch(`${API_URL}/api/guests/bulk-send-invites/${encodeURIComponent(eventId)}/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${idToken}`,  // ✅ Firebase token
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ baseUrl, guestIds })

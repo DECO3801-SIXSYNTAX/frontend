@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Check User Data</title></head>
+<body>
+<h1>Check localStorage User Data</h1>
+<pre id="output"></pre>
+<script>
+const user = JSON.parse(localStorage.getItem('user') || 'null');
+const access_token = localStorage.getItem('access_token');
+const refresh_token = localStorage.getItem('refresh_token');
+
+document.getElementById('output').textContent = JSON.stringify({
+  user,
+  has_access_token: !!access_token,
+  has_refresh_token: !!refresh_token
+}, null, 2);
+</script>
+</body>
+</html>

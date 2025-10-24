@@ -1,12 +1,12 @@
+// Verify.tsx
 "use client"
 
 import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
-import  Button   from "../../components/ui/Button"
+import Button from "../../components/ui/Button"
 import { Loader2, CheckCircle, XCircle, User, Utensils, Heart } from "lucide-react"
 
-// Guest data interface based on backend structure
 interface GuestInfo {
   id: string
   name: string
@@ -17,81 +17,107 @@ interface GuestInfo {
   tags?: string[]
   checkedIn?: boolean
 }
+interface VerifyResponse { payload: { e: string; g: string }; guest: GuestInfo }
 
-interface VerifyResponse {
-  payload: {
-    e: string // event_id
-    g: string // guest_id
-  }
-  guest: GuestInfo
-}
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://127.0.0.1:8000/api"
+
+// shared caches (StrictMode-safe)
+type VerifyResult = { ok: true; guest: GuestInfo } | { ok: false; detail: string }
+const promiseCache = new Map<string, Promise<VerifyResult>>()
+const resultCache  = new Map<string, VerifyResult>()
 
 export function Verify() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const token = searchParams.get("token")
-  const eventId = searchParams.get("eventId")
-  const [isLoading, setIsLoading] = useState(true)
-  const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null)
-  const [error, setError] = useState<string | null>(null)
+
+  const tokenParam = (searchParams.get("token") || "").trim()
+  const eventId    = (searchParams.get("eventId") || "").trim()
+  const scanId     = (searchParams.get("scan") || "").trim()  // ← NEW
+  console.log("[Verify] API_BASE =", API_BASE, "scanId =", scanId)
+
+  const [isLoading, setIsLoading]     = useState(true)
+  const [guestInfo, setGuestInfo]     = useState<GuestInfo | null>(null)
+  const [error, setError]             = useState<string | null>(null)
   const [isCheckedIn, setIsCheckedIn] = useState(false)
 
+  // reset UI when params change
   useEffect(() => {
-    if (!token || !eventId) {
-      navigate("/kiosk")
-      return
-    }
+    setGuestInfo(null)
+    setError(null)
+    setIsCheckedIn(false)
+    setIsLoading(true)
+  }, [tokenParam, eventId, scanId])
 
-    const verifyToken = async () => {
-      setIsLoading(true)
-      
-      try {
-        console.log("=== API Call Debug ===")
-        console.log("Token:", token)
-        console.log("EventId:", eventId)
-        console.log("API URL:", 'http://127.0.0.1:8000/api/guest/debug-decode-guest/')
-        
-        const response = await fetch('http://127.0.0.1:8000/api/guest/debug-decode-guest/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token })
-        })
+  // redirect if params missing
+  useEffect(() => {
+    if (!tokenParam || !eventId) navigate("/kiosk", { replace: true })
+  }, [tokenParam, eventId, navigate])
 
-        console.log("Response status:", response.status)
-        console.log("Response headers:", response.headers)
-        
-        if (response.ok) {
-          const data: VerifyResponse = await response.json()
-          console.log("Response data:", data)
-          setGuestInfo(data.guest)
-          setError(null)
-          
-          // Auto check-in after successful verification
-          setTimeout(() => {
-            setIsCheckedIn(true)
-          }, 1000)
-        } else {
-          const errorData = await response.json()
-          console.error("API Error:", response.status, errorData)
-          setError(errorData.detail || "Invalid QR code. Please contact event staff.")
-        }
-      } catch (error) {
-        console.error("Network error:", error)
-        setError("Network error. Please try again.")
-      } finally {
-        setIsLoading(false)
+  // verify token – cache key includes scanId so every scan hits backend
+  useEffect(() => {
+    if (!tokenParam || !eventId) return
+
+    const key = `${eventId}::${tokenParam}::${scanId || "noscan"}`
+    let active = true
+
+    async function ensure(): Promise<VerifyResult> {
+      if (resultCache.has(key)) {
+        console.log("[Verify] using cached result for", key)
+        return Promise.resolve(resultCache.get(key)!)
       }
+      if (!promiseCache.has(key)) {
+        console.log("[Verify] fetching from", `${API_BASE}/guest/debug-decode-guest/`)
+        const p = (async (): Promise<VerifyResult> => {
+          const res = await fetch(`${API_BASE}/guest/debug-decode-guest/?_=${Date.now()}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ token: tokenParam }),
+            keepalive: true,
+          })
+          let data: any = null
+          try { data = await res.json() } catch {}
+          const result: VerifyResult = res.ok
+            ? { ok: true, guest: (data as VerifyResponse).guest }
+            : { ok: false, detail: data?.detail || "Invalid QR code. Please contact event staff." }
+          resultCache.set(key, result)
+          return result
+        })()
+        promiseCache.set(key, p)
+      }
+      return promiseCache.get(key)!
     }
 
-    verifyToken()
-  }, [token, eventId, navigate])
+    ensure()
+      .then((r) => {
+        if (!active) return
+        if (r.ok) { setGuestInfo(r.guest); setError(null) }
+        else { setGuestInfo(null); setError(r.detail) }
+      })
+      .catch(() => { if (active) setError("Network error. Please try again.") })
+      .finally(() => { if (active) setIsLoading(false) })
+
+    return () => { active = false }
+  }, [tokenParam, eventId, scanId])
+
+  // auto "checked in" after 1s
+  useEffect(() => {
+    if (!guestInfo) return
+    const id = setTimeout(() => setIsCheckedIn(true), 1000)
+    return () => clearTimeout(id)
+  }, [guestInfo])
+
+  // auto redirect after 3s
+  useEffect(() => {
+    if (!isCheckedIn) return
+    const id = setTimeout(() => navigate("/kiosk", { replace: true }), 3000)
+    return () => clearTimeout(id)
+  }, [isCheckedIn, navigate])
 
   const handleBackToScan = () => {
-    navigate(`/kiosk/qr?eventId=${eventId}&fromVerify=true`)
+    navigate(`/kiosk/qr?eventId=${encodeURIComponent(eventId)}&fromVerify=true`)
   }
 
+  // ---- UI
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -135,20 +161,8 @@ export function Verify() {
             <p className="text-green-700 text-center text-lg mb-8">
               Welcome, {guestInfo?.name}! Enjoy the event!
             </p>
-            <div className="mt-6 flex space-x-2">
-              <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
-              <div
-                className="w-2 h-2 bg-green-600 rounded-full animate-bounce"
-                style={{ animationDelay: "0.1s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-green-600 rounded-full animate-bounce"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-            </div>
-            {/* Auto redirect after 3 seconds */}
             <div className="mt-4">
-              <p className="text-sm text-gray-600">Redirecting to kiosk...</p>
+              <p className="text-sm text-gray-600">Redirecting to kiosk…</p>
             </div>
           </CardContent>
         </Card>
@@ -156,18 +170,6 @@ export function Verify() {
     )
   }
 
-  // Auto redirect after 3 seconds
-  useEffect(() => {
-    if (isCheckedIn) {
-      const timer = setTimeout(() => {
-        navigate("/kiosk")
-      }, 3000)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [isCheckedIn, navigate])
-
-  // Show guest information (this should not be reached due to auto check-in)
   if (guestInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -175,14 +177,8 @@ export function Verify() {
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-bold text-gray-900 mb-2">Welcome, {guestInfo.name}!</CardTitle>
           </CardHeader>
-          
           <CardContent className="space-y-6">
-            {/* Guest Basic Info */}
             <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <User className="h-6 w-6 text-blue-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-900">Guest Information</h3>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Name</p>
@@ -203,7 +199,6 @@ export function Verify() {
               </div>
             </div>
 
-            {/* Dietary Requirements */}
             {guestInfo.dietaryRestriction && (
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex items-center mb-4">
@@ -214,7 +209,6 @@ export function Verify() {
               </div>
             )}
 
-            {/* Accessibility Needs */}
             {guestInfo.accessibilityNeeds && (
               <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
                 <div className="flex items-center mb-4">
@@ -225,14 +219,8 @@ export function Verify() {
               </div>
             )}
 
-            {/* Back Button */}
             <div className="pt-4">
-              <Button 
-                onClick={handleBackToScan} 
-                variant="outline" 
-                size="lg" 
-                className="w-full h-14 text-lg"
-              >
+              <Button onClick={handleBackToScan} variant="outline" size="lg" className="w-full h-14 text-lg">
                 Back to Scan
               </Button>
             </div>
@@ -242,6 +230,5 @@ export function Verify() {
     )
   }
 
-  // Fallback - should not reach here
   return null
 }
