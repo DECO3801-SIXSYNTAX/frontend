@@ -80,7 +80,7 @@ const NavbarPlanner: React.FC = () => {
                         key={event.id}
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          navigate(`/planner/events/${event.id}`);
+                          navigate(`/planner/event-config/${event.id}`);
                           clearSearch();
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"

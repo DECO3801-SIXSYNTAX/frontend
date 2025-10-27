@@ -96,10 +96,23 @@ const EventConfiguration: React.FC<EventConfigurationProps> = ({ eventId }) => {
   const loadEventAndConfig = async () => {
     setIsLoading(true);
     try {
-      // Find the event
-      const foundEvent = events.find(e => e.id === eventId);
+      // Find the event from context
+      let foundEvent = events.find(e => e.id === eventId);
+
+      // If not found in context, fetch directly from DashboardService
+      if (!foundEvent) {
+        console.log('Event not found in context, fetching from Firebase...');
+        const { DashboardService } = await import('../../services/DashboardService');
+        const dashboardService = new DashboardService();
+        const allEvents = await dashboardService.getEvents();
+        foundEvent = allEvents.find(e => e.id === eventId);
+      }
+
       if (foundEvent) {
         setEvent(foundEvent);
+      } else {
+        console.error('Event not found:', eventId);
+        // Don't redirect, let the user stay on the page to see the error
       }
 
       // Load event configuration from Firebase
